@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Query, HTTPException, Body
-from sqlalchemy import create_engine, Column, Integer, String, Boolean, DateTime
+from sqlalchemy import (create_engine, Column, Integer,
+                        String, Boolean, DateTime, or_, func)
 from sqlalchemy.orm import sessionmaker, declarative_base
 from pydantic import BaseModel, Field
 from datetime import datetime
@@ -47,20 +48,26 @@ def create_task(task: ToDoModel = Query()):
 
 
 @app.get("/tasks/get/tasks")
-def get_tasks(sort: str = Query('date_time_descending',
-                                enum=['date_time_descending', 'date_time_ascending', 'name',
-                                      'completion_status_by_False', 'completion_status_by_True'])):
-    if sort == 'date_time_descending':
-        tasks = session.query(ToDo).order_by(ToDo.date_time.desc()).all()
-    elif sort == 'date_time_ascending':
-        tasks = session.query(ToDo).order_by(ToDo.date_time.asc()).all()
-    elif sort == 'name':
-        tasks = session.query(ToDo).order_by(ToDo.name).all()
-    elif sort == 'completion_status_by_False':
-        tasks = session.query(ToDo).order_by(ToDo.completion_status.asc()).all()
-    elif sort == 'completion_status_by_True':
-        tasks = session.query(ToDo).order_by(ToDo.completion_status.desc()).all()
+def get_tasks(sort: str = Query('date_time_descending', enum=['date_time_descending', 'date_time_ascending',
+                                                              'name', 'completion_status_by_False',
+                                                              'completion_status_by_True']),
+              completion_status: bool = Query(None)):
+    query = session.query(ToDo)
 
+    if sort == 'date_time_descending':
+        query = query.order_by(ToDo.date_time.desc())
+    elif sort == 'date_time_ascending':
+        query = query.order_by(ToDo.date_time.asc())
+    elif sort == 'name':
+        query = query.order_by(ToDo.name)
+    elif sort == 'completion_status_by_False':
+        query = query.order_by(ToDo.completion_status.asc())
+    elif sort == 'completion_status_by_True':
+        query = query.order_by(ToDo.completion_status.desc())
+
+    if completion_status is not None:
+        query = query.filter(ToDo.completion_status == completion_status)
+    tasks = query.all()
     return [{'id': task.id, 'task_name': task.name,
              'completion_status': str(task.completion_status),
              'date_time': task.date_time.strftime("%Y-%m-%d | %H:%M:%S"),
@@ -74,6 +81,29 @@ def get_task(id: int = Query(ge=1)):
             'completion_status': str(task.completion_status),
             'date_time': task.date_time,
             'text': task.text}
+
+
+@app.get("/tasks/get/by_text")
+def get_task_by_text(search: str):
+    search = search.strip().lower()
+    if not search:
+        raise HTTPException(status_code=400, detail="Поисковая строка не может быть пустой")
+
+    query = session.query(ToDo).filter(
+        or_(
+            func.lower("Ф" + ToDo.name).like(f"%{search}%"),
+            func.lower("Ф" + ToDo.text).like(f"%{search}%")
+        )
+    )
+    tasks = query.all()
+
+    return [{
+        'id': task.id,
+        'task_name': task.name,
+        'completion_status': str(task.completion_status),
+        'date_time': task.date_time.strftime("%Y-%m-%d | %H:%M:%S"),
+        'task': task.text
+    } for task in tasks]
 
 
 @app.put("/tasks/update/by_id")
@@ -121,8 +151,8 @@ def update_task_by_name(
 
 
 @app.delete("/tasks/")
-def delete_task(id: int = Query(ge=1, le=session.query(ToDo).count())):  # удаление по id
+def delete_task(id: int = Query(ge=1)):  # удаление по id
     task = session.query(ToDo).filter(ToDo.id == id).first()
     session.delete(task)
     session.commit()
-    return {f"ToDo с id {id} удалён"}
+    return {f"ToDo удалён"}
