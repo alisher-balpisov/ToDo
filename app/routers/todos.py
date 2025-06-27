@@ -2,13 +2,13 @@ from fastapi import APIRouter, Query, HTTPException, Body
 from datetime import datetime
 import pytz
 from sqlalchemy import or_
-from app.models import session, ToDo
-from app.schemas import ToDoSchema
+from app.db.models import session, ToDo
+from app.db.schemas import ToDoSchema
 
-router = APIRouter()
+router = APIRouter(prefix="/tasks")
 
 
-@router.post("/tasks/")
+@router.post("/create/")
 def create_task(task: ToDoSchema = Body()):
     new_task = ToDo(
         name=task.name,
@@ -21,7 +21,7 @@ def create_task(task: ToDoSchema = Body()):
     return {"message": "Задача добавлена"}
 
 
-@router.get("/tasks/get/tasks")
+@router.get("/get/tasks")
 def get_tasks(sort: list[str] = Query(default=['date_desc'], enum=[
     'date_desc', 'date_asc', 'name',
     'status_false_first', 'status_true_first'
@@ -59,7 +59,7 @@ def get_tasks(sort: list[str] = Query(default=['date_desc'], enum=[
         } for task in tasks]
 
 
-@router.get("/tasks/get/task")
+@router.get("/get/task")
 def get_task(id: int = Query(ge=1)):
     task = session.query(ToDo).filter(ToDo.id == id).first()
     if task is None:
@@ -72,7 +72,7 @@ def get_task(id: int = Query(ge=1)):
     }
 
 
-@router.get("/tasks/search/")
+@router.get("/search/")
 def search_tasks(search_query: str):
     tasks = session.query(ToDo).filter(
         or_(
@@ -89,7 +89,7 @@ def search_tasks(search_query: str):
         } for task in tasks]
 
 
-@router.put("/tasks/update/by_id")
+@router.put("/update/by_id")
 def update_task_by_id(
         id: int = Query(ge=1),
         completion_status: bool = Query(None),
@@ -117,7 +117,7 @@ def update_task_by_id(
     }
 
 
-@router.put("/tasks/update/by_name")
+@router.put("/update/by_name")
 def update_task_by_name(
         search_name: str = Query(),
         completion_status: bool = Query(None),
@@ -145,7 +145,7 @@ def update_task_by_name(
     }
 
 
-@router.delete("/tasks/")
+@router.delete("/delete")
 def delete_task(id: int = Query(ge=1)):  # удаление по id
     task = session.query(ToDo).filter(ToDo.id == id).first()
     if task is None:
