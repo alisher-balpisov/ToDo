@@ -1,39 +1,14 @@
-from fastapi import FastAPI, Query, HTTPException, Body
-from sqlalchemy import (create_engine, Column, Integer,
-                        String, Boolean, DateTime, or_)
-from sqlalchemy.orm import sessionmaker, declarative_base
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Query, HTTPException, Body
 from datetime import datetime
 import pytz
+from sqlalchemy import or_
+from app.models import session, ToDo
+from app.schemas import ToDoSchema
 
-DATABASE_URL = 'postgresql://localhost:5432/base_db'
-engine = create_engine(DATABASE_URL)
-Session = sessionmaker(bind=engine)
-session = Session()
-Base = declarative_base()
-
-
-class ToDoSchema(BaseModel):
-    name: str = Field(max_length=20)
-    text: str = Field(max_length=4096)
+router = APIRouter()
 
 
-class ToDo(Base):
-    __tablename__ = "ToDo"
-
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    text = Column(String)
-    completion_status = Column(Boolean)
-    date_time = Column(DateTime)
-
-
-Base.metadata.create_all(engine)
-
-app = FastAPI()
-
-
-@app.post("/tasks/")
+@router.post("/tasks/")
 def create_task(task: ToDoSchema = Body()):
     new_task = ToDo(
         name=task.name,
@@ -46,14 +21,12 @@ def create_task(task: ToDoSchema = Body()):
     return {"message": "Задача добавлена"}
 
 
-@app.get("/tasks/get/tasks")
+@router.get("/tasks/get/tasks")
 def get_tasks(sort: list[str] = Query(default=['date_desc'], enum=[
     'date_desc', 'date_asc', 'name',
     'status_false_first', 'status_true_first'
 ]),
               completion_status: bool = Query(None)):
-    tasks_query = session.query(ToDo)
-
     order_by_clauses = []
 
     for rule in sort:
@@ -77,10 +50,16 @@ def get_tasks(sort: list[str] = Query(default=['date_desc'], enum=[
         tasks_query = tasks_query.order_by(*order_by_clauses)
 
     tasks = tasks_query.all()
-    return tasks
+    return [
+        {
+            'id': task.id, 'task_name': task.name,
+            'completion_status': str(task.completion_status),
+            'date_time': task.date_time.strftime("%Y-%m-%d | %H:%M:%S"),
+            'text': task.text
+        } for task in tasks]
 
 
-@app.get("/tasks/get/task")
+@router.get("/tasks/get/task")
 def get_task(id: int = Query(ge=1)):
     task = session.query(ToDo).filter(ToDo.id == id).first()
     if task is None:
@@ -93,7 +72,7 @@ def get_task(id: int = Query(ge=1)):
     }
 
 
-@app.get("/tasks/search/")
+@router.get("/tasks/search/")
 def search_tasks(search_query: str):
     tasks = session.query(ToDo).filter(
         or_(
@@ -110,7 +89,7 @@ def search_tasks(search_query: str):
         } for task in tasks]
 
 
-@app.put("/tasks/update/by_id")
+@router.put("/tasks/update/by_id")
 def update_task_by_id(
         id: int = Query(ge=1),
         completion_status: bool = Query(None),
@@ -138,7 +117,7 @@ def update_task_by_id(
     }
 
 
-@app.put("/tasks/update/by_name")
+@router.put("/tasks/update/by_name")
 def update_task_by_name(
         search_name: str = Query(),
         completion_status: bool = Query(None),
@@ -166,7 +145,7 @@ def update_task_by_name(
     }
 
 
-@app.delete("/tasks/")
+@router.delete("/tasks/")
 def delete_task(id: int = Query(ge=1)):  # удаление по id
     task = session.query(ToDo).filter(ToDo.id == id).first()
     if task is None:
