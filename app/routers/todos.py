@@ -1,32 +1,43 @@
-from fastapi import APIRouter, Query, HTTPException, Body
+from fastapi import APIRouter, Query, HTTPException, Body, Depends
 from datetime import datetime
 import pytz
 from sqlalchemy import or_
-from app.db.models import session, ToDo
+from app.db.models import session, ToDo, User
 from app.db.schemas import ToDoSchema
+from app.auth.jwt_handler import get_current_active_user
 
 router = APIRouter(prefix="/tasks")
 
 
 @router.post("/create/")
-def create_task(task: ToDoSchema = Body()):
-    new_task = ToDo(
-        name=task.name,
-        text=task.text,
-        completion_status=False,
-        date_time=datetime.now(pytz.timezone('Asia/Almaty'))
-    )
-    session.add(new_task)
-    session.commit()
-    return {"message": "Задача добавлена"}
+def create_task(task: ToDoSchema = Body(), current_user: User = Depends(get_current_active_user)):
+    try:
+        new_task = ToDo(
+            name=task.name,
+            text=task.text,
+            completion_status=False,
+            date_time=datetime.now(pytz.timezone('Asia/Almaty')),
+            user_id=current_user.id
+        )
+        session.add(new_task)
+        session.commit()
+        return {"message": "Задача добавлена"}
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+from typing import Literal
+
+SortRule = Literal['date_desc', 'date_asc', 'name', 'status_false_first', 'status_true_first']
 
 
 @router.get("/get/tasks")
-def get_tasks(sort: list[str] = Query(default=['date_desc'], enum=[
-    'date_desc', 'date_asc', 'name',
-    'status_false_first', 'status_true_first'
-]),
-              completion_status: bool = Query(None)):
+def get_tasks(
+        sort: list[SortRule] = Query(default=['date_desc']),
+        current_user: User = Depends(get_current_active_user),
+        completion_status: bool = Query(None)
+):
     order_by_clauses = []
 
     for rule in sort:
@@ -41,7 +52,7 @@ def get_tasks(sort: list[str] = Query(default=['date_desc'], enum=[
         elif rule == 'status_true_first':
             order_by_clauses.append(ToDo.completion_status.desc())
 
-    tasks_query = session.query(ToDo)
+    tasks_query = session.query(ToDo).filter(ToDo.user_id == current_user.id)
 
     if completion_status is not None:
         tasks_query = tasks_query.filter(ToDo.completion_status == completion_status)
@@ -53,7 +64,7 @@ def get_tasks(sort: list[str] = Query(default=['date_desc'], enum=[
     return [
         {
             'id': task.id, 'task_name': task.name,
-            'completion_status': str(task.completion_status),
+            'completion_status': task.completion_status,
             'date_time': task.date_time.strftime("%Y-%m-%d | %H:%M:%S"),
             'text': task.text
         } for task in tasks]

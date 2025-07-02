@@ -2,7 +2,8 @@ from fastapi import HTTPException, Depends, APIRouter
 from app.db.models import session
 from fastapi.security import OAuth2PasswordRequestForm
 from app.auth.jwt_handler import (get_hash_password, create_access_token,
-                                  authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES)
+                                  authenticate_user, get_current_active_user,
+                                  ACCESS_TOKEN_EXPIRE_MINUTES)
 from datetime import timedelta
 from app.db.schemas import Token, UserCreate
 from app.db.models import User
@@ -17,8 +18,8 @@ def register(user_data: UserCreate):
     hashed_password = get_hash_password(user_data.password)
     new_user = User(
         username=user_data.username,
-        hashed_password=hashed_password,
-        disabled=False
+        email=str(user_data.email),
+        hashed_password=hashed_password
     )
     session.add(new_user)
     session.commit()
@@ -26,9 +27,9 @@ def register(user_data: UserCreate):
     return {"message": "Пользователь успешно зарегистрировался"}
 
 
-@router.post("/login")
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user = authenticate_user(session, form_data.username, form_data.password)
+@router.post("/login",  response_model=Token)
+async def login(form_data: OAuth2PasswordRequestForm = Depends(OAuth2PasswordRequestForm)):
+    user = authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=401,
@@ -40,3 +41,9 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
         expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
+
+@router.get("/get")
+def read_me(current_user: User = Depends(get_current_active_user)):
+    return {"username": current_user.username}
+
+

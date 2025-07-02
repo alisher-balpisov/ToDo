@@ -14,6 +14,7 @@ class ToDo(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
+    user_id = Column(Integer)
     text = Column(String)
     completion_status = Column(Boolean)
     date_time = Column(DateTime)
@@ -24,6 +25,7 @@ class User(Base):
 
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, index=True)
+    email = Column(String, unique=True)
     hashed_password = Column(String)
     disabled = Column(Boolean, default=False)
 
