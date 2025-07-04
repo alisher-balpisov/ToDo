@@ -1,8 +1,8 @@
 from sqlalchemy import (create_engine, Column, Integer,
-                        String, Boolean, DateTime)
+                        String, Boolean, DateTime, Text)
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = 'postgresql://localhost:5432/base_db'
+DATABASE_URL = 'postgresql://postgres:200614@localhost:5432/base_db'
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 session = Session()
@@ -15,9 +15,10 @@ class ToDo(Base):
     id = Column(Integer, primary_key=True)
     name = Column(String)
     user_id = Column(Integer)
-    text = Column(String)
-    completion_status = Column(Boolean)
+    text = Column(Text)
+    completion_status = Column(Boolean, default=False)
     date_time = Column(DateTime)
+    file_path = Column(String, nullable=True)
 
 
 class User(Base):
