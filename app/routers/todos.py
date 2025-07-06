@@ -11,6 +11,14 @@ router = APIRouter(prefix="/tasks")
 logger = getLogger()
 
 
+@router.post("/files")
+def upload_file(uploaded_file: UploadFile):
+    file = uploaded_file.file
+    file_name = uploaded_file.filename
+    with open(file_name, "wb") as f:
+        f.write(file.read())
+
+
 def handle_exception(e: Exception, message: str = "Ошибка сервера"):
     logger.exception(message)
     raise HTTPException(
@@ -20,7 +28,8 @@ def handle_exception(e: Exception, message: str = "Ошибка сервера")
 
 
 @router.post("/create/")
-def create_task(task: ToDoSchema = Body(), current_user: User = Depends(get_current_active_user)):
+def create_task(task: ToDoSchema = Body(),
+                current_user: User = Depends(get_current_active_user)):
     try:
         new_task = ToDo(
             name=task.name,
@@ -35,6 +44,28 @@ def create_task(task: ToDoSchema = Body(), current_user: User = Depends(get_curr
     except Exception as e:
         session.rollback()
         handle_exception(e, "Ошибка сервера при создании задачи")
+
+
+@router.post("/upload_file")
+async def upload_file(uploaded_file: UploadFile = File(),
+                      todo_id: int = Query(),
+                      current_user: User = Depends(get_current_active_user)):
+    try:
+        file_data = await uploaded_file.read()
+        file_name = uploaded_file.filename
+        task = session.query(ToDo).filter(
+            ToDo.id == todo_id,
+            ToDo.user_id == current_user.id
+        ).first()
+        if not task:
+            raise HTTPException(status_code=404, detail="Задача не найдена")
+        task.file_data = file_data
+        task.file_name = file_name
+        session.commit()
+        return {"message": "Файл успешно загружен"}
+    except Exception as e:
+        session.rollback()
+        handle_exception(e, "Ошибка сервера при загрузке файла")
 
 
 from typing import Literal, List
@@ -100,7 +131,10 @@ def get_tasks(
 @router.get("/get/task")
 def get_task(id: int = Query(ge=1), current_user: User = Depends(get_current_active_user)):
     try:
-        task = session.query(ToDo).filter(ToDo.id == id).filter(ToDo.user_id == current_user.id).first()
+        task = session.query(ToDo).filter(
+            ToDo.id == id,
+            ToDo.user_id == current_user.id
+        ).first()
         if task is None:
             raise HTTPException(status_code=404, detail="ToDo не существует")
         return {
@@ -142,7 +176,10 @@ def update_task_by_id(
         current_user: User = Depends(get_current_active_user)
 ):
     try:
-        task = session.query(ToDo).filter(ToDo.id == id).filter(ToDo.user_id == current_user.id).first()
+        task = session.query(ToDo).filter(
+            ToDo.id == id,
+            ToDo.user_id == current_user.id
+        ).first()
         if task is None:
             raise HTTPException(status_code=404, detail="ToDo не существует")
 
@@ -175,7 +212,10 @@ def update_task_by_name(
         current_user: User = Depends(get_current_active_user)
 ):
     try:
-        task = session.query(ToDo).filter(ToDo.name == search_name).filter(ToDo.user_id == current_user.id).first()
+        task = session.query(ToDo).filter(
+            ToDo.name == search_name,
+            ToDo.user_id == current_user.id
+        ).first()
         if task is None:
             raise HTTPException(status_code=404, detail="ToDo не существует")
 
@@ -203,7 +243,10 @@ def update_task_by_name(
 @router.delete("/delete")
 def delete_task(id: int = Query(ge=1), current_user: User = Depends(get_current_active_user)):  # удаление по id
     try:
-        task = session.query(ToDo).filter(ToDo.id == id).filter(ToDo.user_id == current_user.id).first()
+        task = session.query(ToDo).filter(
+            ToDo.id == id,
+            ToDo.user_id == current_user.id
+        ).first()
         if task is None:
             raise HTTPException(status_code=404, detail="ToDo не существует")
         session.delete(task)

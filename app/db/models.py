@@ -1,5 +1,5 @@
 from sqlalchemy import (create_engine, Column, Integer,
-                        String, Boolean, DateTime, Text)
+                        String, Boolean, DateTime, Text, LargeBinary)
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 DATABASE_URL = 'postgresql://postgres:200614@localhost:5432/base_db'
@@ -18,8 +18,9 @@ class ToDo(Base):
     text = Column(Text)
     completion_status = Column(Boolean, default=False)
     date_time = Column(DateTime)
-    file_path = Column(String, nullable=True)
 
+    file_data = Column(LargeBinary, nullable=True, default=None)
+    file_name = Column(String, nullable=True, default=None)
 
 class User(Base):
     __tablename__ = "users"

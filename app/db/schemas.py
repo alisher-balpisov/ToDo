@@ -1,12 +1,9 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator
-from starlette.datastructures import UploadFile
-from fastapi import
 
 
 class ToDoSchema(BaseModel):
     name: str = Field(max_length=30)
     text: str = Field(max_length=4096)
-    file: UploadFile | None = File()
 
 
 class Token(BaseModel):
