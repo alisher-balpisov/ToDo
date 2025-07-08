@@ -11,14 +11,6 @@ router = APIRouter(prefix="/tasks")
 logger = getLogger()
 
 
-@router.post("/files")
-def upload_file(uploaded_file: UploadFile):
-    file = uploaded_file.file
-    file_name = uploaded_file.filename
-    with open(file_name, "wb") as f:
-        f.write(file.read())
-
-
 def handle_exception(e: Exception, message: str = "Ошибка сервера"):
     logger.exception(message)
     raise HTTPException(
@@ -116,16 +108,44 @@ def get_tasks(
             tasks_query = tasks_query.order_by(*order_by)
 
         tasks = tasks_query.offset(skip).limit(limit).all()
+        import base64
         return [
             {
                 'id': task.id, 'task_name': task.name,
                 'completion_status': task.completion_status,
                 'date_time': task.date_time.strftime("%Y-%m-%d | %H:%M:%S"),
-                'text': task.text
+                'text': task.text,
+                'file_name': task.file_name,
             } for task in tasks
         ]
     except Exception as e:
         handle_exception(e, "Ошибка сервера при выводе задач")
+
+
+from fastapi.responses import StreamingResponse
+from fastapi import HTTPException
+from io import BytesIO
+import mimetypes
+
+
+@router.get("/get/file/{task_id}")
+def get_task_file(task_id: int, current_user: User = Depends(get_current_active_user)):
+    task = session.query(ToDo).filter(
+        ToDo.id == task_id, ToDo.user_id == current_user.id
+    ).first()
+
+    if not task or not task.file_data:
+        raise HTTPException(status_code=404, detail="Файл не найден")
+
+    # Определяем MIME-тип по имени файла
+    mime_type, _ = mimetypes.guess_type(task.file_name or "")
+    mime_type = mime_type or "application/octet-stream"
+
+    return StreamingResponse(
+        BytesIO(task.file_data),
+        media_type=mime_type,
+        headers={"Content-Disposition": f"inline; filename={task.file_name or 'file'}"}
+    )
 
 
 @router.get("/get/task")
@@ -274,3 +294,13 @@ def get_tasks_stats(current_user: User = Depends(get_current_active_user)):
         }
     except Exception as e:
         handle_exception(e, "Ошибка сервера при выводе статистики")
+
+
+
+
+
+
+@router.get("/share")
+def share_task_user_to_user(user_id: int = Query(), task_id: int = Query()):
+
+
