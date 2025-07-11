@@ -1,10 +1,12 @@
-import jwt
-from passlib.hash import bcrypt
-from jwt.exceptions import InvalidTokenError
 from datetime import timedelta, datetime
+
+import jwt
 from fastapi import HTTPException, Depends
-from app.db.models import session, User
 from fastapi.security import OAuth2PasswordBearer
+from jwt.exceptions import InvalidTokenError
+from passlib.hash import bcrypt
+
+from app.db.models import session, User
 
 SECRET_KEY = 'ABCDE'
 ALGORITHM = 'HS256'

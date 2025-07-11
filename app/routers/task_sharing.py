@@ -1,12 +1,16 @@
-from fastapi import APIRouter, Depends, Query
-from app.auth.jwt_handler import get_current_active_user
-from app.db.models import session, ToDo, User, TaskShare
-from app.db.schemas import TaskShareSchema
-from app.routers.crud import handle_exception, validate_sort, SortRule, todo_sort_mapping
-from typing import List
-from fastapi.responses import StreamingResponse
-from io import BytesIO
 import mimetypes
+from io import BytesIO
+from typing import List
+
+from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi.responses import StreamingResponse
+from sqlalchemy import or_
+
+from app.auth.jwt_handler import get_current_active_user
+from app.db.models import session, ToDo, User, TaskShare, SharedAccessEnum
+from app.db.schemas import TaskShareSchema
+from app.routers.crud import validate_sort, SortRule, todo_sort_mapping
+from app.routers.handle_exception import get_handle_exception
 from app.routers.sharing_helpers import (get_owned_task,
                                          get_existing_user,
                                          get_shared_access)
@@ -23,7 +27,7 @@ def share_task(
 
         get_owned_task(share_data.task_id, current_user)
 
-        shared_with_user = get_existing_user_or_404(share_data.shared_with_username)
+        shared_with_user = get_existing_user(share_data.shared_with_username)
 
         if shared_with_user.id == current_user.id:
             raise HTTPException(status_code=400, detail="Нельзя поделиться задачей с самим собой")
@@ -46,7 +50,7 @@ def share_task(
         return {"message": "Задача успешно расшарена с пользователем"}
     except Exception as e:
         session.rollback()
-        handle_exception(e, "Ошибка сервера при предоставлении доступа к задаче")
+        get_handle_exception(e, "Ошибка сервера при предоставлении доступа к задаче")
 
 
 @router.get("/tasks")
@@ -90,7 +94,7 @@ def get_shared_tasks(
             } for task, owner_username, permission_level in tasks
         ]
     except Exception as e:
-        handle_exception(e, "Ошибка сервера при получении расшаренных задач")
+        get_handle_exception(e, "Ошибка сервера при получении расшаренных задач")
 
 
 @router.get("/task_file")
@@ -118,7 +122,7 @@ def get_shared_task_file(id: int, current_user: User = Depends(get_current_activ
             headers={"Content-Disposition": f"inline; filename={task.file_name or 'file'}"}
         )
     except Exception as e:
-        handle_exception(e, "Ошибка сервера при получении файла")
+        get_handle_exception(e, "Ошибка сервера при получении файла")
 
 
 @router.delete("/delete")
@@ -131,11 +135,9 @@ def unshare_task(
 
         get_owned_task(task_id, current_user)
 
-        shared_with_user = get_existing_user_or_404(username)
+        shared_with_user = get_existing_user(username)
 
         share = get_shared_access(task_id, current_user, shared_with_user)
-
-        filter(shared_access == SharedAccessEnum.VIEW)
 
         session.delete(share)
         session.commit()
@@ -143,14 +145,14 @@ def unshare_task(
         return {"message": "Доступ к задаче успешно отозван"}
     except Exception as e:
         session.rollback()
-        handle_exception(e, "Ошибка сервера при отзыве доступа к задаче")
+        get_handle_exception(e, "Ошибка сервера при отзыве доступа к задаче")
 
 
 @router.put("/update_permission")
 def update_share_permission(
         task_id: int,
         username: str,
-        new_permission: str = Query(pattern='^(view|edit|send)$'),
+        new_permission: SharedAccessEnum,
         current_user: User = Depends(get_current_active_user)
 ):
     try:
@@ -167,4 +169,4 @@ def update_share_permission(
         return {"message": "Уровень доступа успешно обновлен"}
     except Exception as e:
         session.rollback()
-        handle_exception(e, "Ошибка сервера при обновлении уровня доступа")
+        get_handle_exception(e, "Ошибка сервера при обновлении уровня доступа")

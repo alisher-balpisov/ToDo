@@ -1,16 +1,19 @@
-from fastapi import APIRouter, Query, HTTPException, Body, Depends, File, UploadFile
+import mimetypes
 from datetime import datetime
+from io import BytesIO
+from typing import List
+
 import pytz
+from fastapi import APIRouter, Query, Body, Depends, File, UploadFile
+from fastapi import HTTPException
+from fastapi.responses import StreamingResponse
+
+from app.auth.jwt_handler import get_current_active_user
 from app.db.models import session, ToDo, User
 from app.db.schemas import ToDoSchema
-from app.auth.jwt_handler import get_current_active_user
-from typing import List
-from fastapi.responses import StreamingResponse
-from fastapi import HTTPException
-from io import BytesIO
-import mimetypes
 from app.routers.crud_helpers import (validate_sort, todo_sort_mapping,
-                                      SortRule, handle_exception, logger)
+                                      SortRule)
+from app.routers.handle_exception import get_handle_exception
 
 router = APIRouter(prefix="/tasks")
 
@@ -31,7 +34,7 @@ def create_task(task: ToDoSchema = Body(),
         return {"message": "Задача добавлена"}
     except Exception as e:
         session.rollback()
-        handle_exception(e, "Ошибка сервера при создании задачи")
+        get_handle_exception(e, "Ошибка сервера при создании задачи")
 
 
 @router.post("/upload_file")
@@ -53,7 +56,7 @@ async def upload_file(uploaded_file: UploadFile = File(),
         return {"message": "Файл успешно загружен"}
     except Exception as e:
         session.rollback()
-        handle_exception(e, "Ошибка сервера при загрузке файла")
+        get_handle_exception(e, "Ошибка сервера при загрузке файла")
 
 
 @router.get("/tasks")
@@ -86,7 +89,7 @@ def get_tasks(
             } for task in tasks
         ]
     except Exception as e:
-        handle_exception(e, "Ошибка сервера при выводе задач")
+        get_handle_exception(e, "Ошибка сервера при выводе задач")
 
 
 @router.get("/task_file")
@@ -108,7 +111,7 @@ def get_task_file(task_id: int, current_user: User = Depends(get_current_active_
             headers={"Content-Disposition": f"inline; filename={task.file_name or 'file'}"}
         )
     except Exception as e:
-        handle_exception(e, "Ошибка сервера при получении файла")
+        get_handle_exception(e, "Ошибка сервера при получении файла")
 
 
 @router.get("/task")
@@ -129,7 +132,7 @@ def get_task(id: int = Query(ge=1), current_user: User = Depends(get_current_act
             'text': task.text
         }
     except Exception as e:
-        handle_exception(e, "Ошибка сервера при выводе задачи")
+        get_handle_exception(e, "Ошибка сервера при выводе задачи")
 
 
 @router.put("/update/by_id")
@@ -163,7 +166,7 @@ def update_task_by_id(
         }
     except Exception as e:
         session.rollback()
-        handle_exception(e, "Ошибка сервера при изменении задачи по id")
+        get_handle_exception(e, "Ошибка сервера при изменении задачи по id")
 
 
 @router.put("/update/by_name")
@@ -197,7 +200,7 @@ def update_task_by_name(
         }
     except Exception as e:
         session.rollback()
-        handle_exception(e, "Ошибка сервера при изменении задачи по имени")
+        get_handle_exception(e, "Ошибка сервера при изменении задачи по имени")
 
 
 @router.delete("/delete")
@@ -216,4 +219,4 @@ def delete_task(id: int = Query(ge=1), current_user: User = Depends(get_current_
         return {"message": "ToDo удалён"}
     except Exception as e:
         session.rollback()
-        handle_exception(e, "Ошибка сервера при удалении задачи")
+        get_handle_exception(e, "Ошибка сервера при удалении задачи")

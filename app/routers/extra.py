@@ -1,7 +1,9 @@
-from fastapi import APIRouter, Depends, Query
-from app.db.models import session, ToDo, User
+from fastapi import APIRouter, Depends
+from sqlalchemy import or_
+
 from app.auth.jwt_handler import get_current_active_user
-from app.routers.crud import handle_exception
+from app.db.models import session, ToDo, User
+from app.routers.handle_exception import get_handle_exception
 
 router = APIRouter(prefix="/tasks")
 
@@ -27,7 +29,7 @@ def search_tasks(search_query: str, current_user: User = Depends(get_current_act
             } for task in tasks
         ]
     except Exception as e:
-        handle_exception(e, "Ошибка сервера при поиске задачи")
+        get_handle_exception(e, "Ошибка сервера при поиске задачи")
 
 
 @router.get("/stats")
@@ -46,4 +48,4 @@ def get_tasks_stats(current_user: User = Depends(get_current_active_user)):
             "completion_percentage": completion_percentage
         }
     except Exception as e:
-        handle_exception(e, "Ошибка сервера при выводе статистики")
+        get_handle_exception(e, "Ошибка сервера при выводе статистики")

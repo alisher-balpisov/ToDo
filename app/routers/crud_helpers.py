@@ -1,18 +1,8 @@
 from typing import Literal, List
-from app.db.models import ToDo
+
 from fastapi import Query
-from logging import getLogger
 
-logger = getLogger()
-
-
-def handle_exception(e: Exception, message: str = "Ошибка сервера"):
-    logger.exception(message)
-    raise HTTPException(
-        status_code=500,
-        detail=f"{message}: {str(e)}"
-    )
-
+from app.db.models import ToDo
 
 SortRule = Literal['date_desc', 'date_asc', 'name', 'status_false_first', 'status_true_first']
 

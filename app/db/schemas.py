@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator
-from typing import Literal
+
+from app.db.models import SharedAccessEnum
 
 
 class ToDoSchema(BaseModel):
@@ -28,4 +29,4 @@ class UserCreateSchema(BaseModel):
 class TaskShareSchema(BaseModel):
     task_id: int
     shared_with_username: str
-    permission_level: Literal["view", "edit", "send"] = Field(default='view')
+    permission_level: SharedAccessEnum = Field(default=SharedAccessEnum.VIEW)

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+
 from app.routers import crud, auth, extra, task_sharing
 
 app = FastAPI()

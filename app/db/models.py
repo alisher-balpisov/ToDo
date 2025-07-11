@@ -1,9 +1,10 @@
+import enum
+from datetime import datetime
+
+import pytz
 from sqlalchemy import (create_engine, Column, Integer,
                         String, Boolean, DateTime, Text, LargeBinary, ForeignKey, Enum)
 from sqlalchemy.orm import sessionmaker, declarative_base
-from datetime import datetime
-import pytz
-import enum
 
 DATABASE_URL = 'postgresql://postgres:200614@localhost:5432/base_db'
 engine = create_engine(DATABASE_URL)
@@ -17,9 +18,9 @@ class ToDo(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String)
-    user_id = Column(Integer)
+    user_id = Column(Integer, index=True)
     text = Column(Text)
-    completion_status = Column(Boolean, default=False)
+    completion_status = Column(Boolean, default=False, index=True)
     date_time = Column(DateTime, default=datetime.now(pytz.timezone('Asia/Almaty')))
 
     file_data = Column(LargeBinary, nullable=True, default=None)
@@ -37,18 +38,18 @@ class User(Base):
 
 
 class SharedAccessEnum(enum.Enum):
-    view = 'view'
-    edit = 'edit'
+    VIEW = 'view'
+    EDIT = 'edit'
 
 
 class TaskShare(Base):
     __tablename__ = 'task_shares'
 
     id = Column(Integer, primary_key=True)
-    task_id = Column(Integer, ForeignKey('ToDo.id'))
-    owner_id = Column(Integer, ForeignKey('users.id'))
-    shared_with_id = Column(Integer, ForeignKey('users.id'))
-    permission_level = Column(Enum(SharedAccessEnum), default=SharedAccessEnum.view)
+    task_id = Column(Integer, ForeignKey('ToDo.id'), index=True)
+    owner_id = Column(Integer, ForeignKey('users.id'), index=True)
+    shared_with_id = Column(Integer, ForeignKey('users.id'), index=True)
+    permission_level = Column(Enum(SharedAccessEnum), default=SharedAccessEnum.VIEW)
     date_time = Column(DateTime, default=datetime.now(pytz.timezone('Asia/Almaty')))
 
 
