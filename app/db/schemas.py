@@ -1,17 +1,19 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator
+from typing import Literal
 
 
 class ToDoSchema(BaseModel):
-    name: str = Field(max_length=30)
-    text: str = Field(max_length=4096)
+    name: str | None = Field(default=None, max_length=30)
+    text: str | None = Field(default=None, max_length=4096)
+    completion_status: bool | None = Field(default=None)
 
 
-class Token(BaseModel):
+class TokenSchema(BaseModel):
     access_token: str
     token_type: str
 
 
-class UserCreate(BaseModel):
+class UserCreateSchema(BaseModel):
     username: str = Field(min_length=3, max_length=20, description="Имя пользователя")
     email: EmailStr = Field(description="Email в формате user@example.com")
     password: str = Field(min_length=6, max_length=20, description="Пароль (6–20 символов)")
@@ -21,3 +23,9 @@ class UserCreate(BaseModel):
         if len(v) > 50:
             raise ValueError("Email должен быть короче 50 символов")
         return v
+
+
+class TaskShareSchema(BaseModel):
+    task_id: int
+    shared_with_username: str
+    permission_level: Literal["view", "edit", "send"] = Field(default='view')
