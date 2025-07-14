@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 
-from app.routers import crud, auth, extra, task_sharing
+from app.routers import auth, crud, extra, task_sharing
 
 app = FastAPI()
 app.include_router(auth.router)

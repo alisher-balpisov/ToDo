@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.db.models import SharedAccessEnum
 
@@ -15,11 +15,14 @@ class TokenSchema(BaseModel):
 
 
 class UserCreateSchema(BaseModel):
-    username: str = Field(min_length=3, max_length=20, description="Имя пользователя")
+    username: str = Field(min_length=3, max_length=20,
+                          description="Имя пользователя")
     email: EmailStr = Field(description="Email в формате user@example.com")
-    password: str = Field(min_length=6, max_length=20, description="Пароль (6–20 символов)")
+    password: str = Field(
+        min_length=6, max_length=20, description="Пароль (6–20 символов)"
+    )
 
-    @field_validator('email')
+    @field_validator("email")
     def email_length(cls, v):
         if len(v) > 50:
             raise ValueError("Email должен быть короче 50 символов")

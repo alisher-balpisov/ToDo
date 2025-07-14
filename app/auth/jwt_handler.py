@@ -1,15 +1,15 @@
-from datetime import timedelta, datetime
+from datetime import datetime, timedelta
 
 import jwt
-from fastapi import HTTPException, Depends
+from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from passlib.hash import bcrypt
 
-from app.db.models import session, User
+from app.db.models import User, session
 
-SECRET_KEY = 'ABCDE'
-ALGORITHM = 'HS256'
+SECRET_KEY = "ABCDE"
+ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
@@ -26,7 +26,7 @@ def verify_password(plain_password: str, hash_password: str) -> bool:
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
-        to_encode['exp'] = datetime.now() + expires_delta
+        to_encode["exp"] = datetime.now() + expires_delta
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
@@ -41,8 +41,7 @@ def authenticate_user(username: str, password: str):
 
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(
-        status_code=401,
-        detail='Не удалось подтвердить учетные данные'
+        status_code=401, detail="Не удалось подтвердить учетные данные"
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
