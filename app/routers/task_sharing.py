@@ -10,10 +10,10 @@ from app.auth.jwt_handler import get_current_active_user
 from app.db.models import SharedAccessEnum, TaskShare, ToDo, User, session
 from app.db.schemas import TaskShareSchema
 from app.routers.crud_helpers import validate_sort
-from app.routers.sharing_helpers import SortRule, todo_sort_mapping
 from app.routers.handle_exception import check_handle_exception
-from app.routers.sharing_helpers import (check_owned_task, get_existing_user,
-                                         get_shared_access)
+from app.routers.sharing_helpers import (SortRule, check_owned_task,
+                                         get_existing_user, get_shared_access,
+                                         todo_sort_mapping, validate_sort)
 
 router = APIRouter(prefix="/tasks/share")
 
@@ -24,16 +24,13 @@ def share_task(
     current_user: User = Depends(get_current_active_user)
 ):
     try:
-
         check_owned_task(share_data.task_id, current_user)
-
         shared_with_user = get_existing_user(share_data.shared_with_username)
 
         if shared_with_user.id == current_user.id:
             raise HTTPException(
                 status_code=400, detail="Нельзя поделиться задачей с самим собой"
             )
-
         already_shared = (
             session.query(TaskShare)
             .filter(
@@ -42,11 +39,11 @@ def share_task(
             )
             .first()
         )
+
         if already_shared:
             raise HTTPException(
                 status_code=400, detail="Доступ уже предоставлен этому пользователю"
             )
-
         new_share = TaskShare(
             task_id=share_data.task_id,
             owner_id=current_user.id,
@@ -70,7 +67,6 @@ def get_shared_tasks(
     current_user: User = Depends(get_current_active_user),
 ):
     try:
-
         query = (
             session.query(
                 ToDo, User.username.label(
@@ -87,9 +83,7 @@ def get_shared_tasks(
 
         if order_by:
             query = query.order_by(*order_by)
-
         tasks = query.offset(skip).limit(limit).all()
-
         return [
             {
                 "id": task.id,
@@ -127,10 +121,8 @@ def get_shared_task_file(
 
         if not task or not task.file_data:
             raise HTTPException(status_code=404, detail="Файл не найден")
-
         mime_type, _ = mimetypes.guess_type(task.file_name or "")
         mime_type = mime_type or "application/octet-stream"
-
         return StreamingResponse(
             BytesIO(task.file_data),
             media_type=mime_type,
@@ -147,16 +139,11 @@ def unshare_task(
     task_id: int, username: str, current_user: User = Depends(get_current_active_user)
 ):
     try:
-
         check_owned_task(task_id, current_user)
-
         shared_with_user = get_existing_user(username)
-
         share = get_shared_access(task_id, current_user, shared_with_user)
-
         session.delete(share)
         session.commit()
-
         return {"message": "Доступ к задаче успешно отозван"}
     except Exception as e:
         session.rollback()
@@ -171,16 +158,11 @@ def update_share_permission(
     current_user: User = Depends(get_current_active_user),
 ):
     try:
-
         check_owned_task(task_id, current_user)
-
         shared_with_user = get_existing_user(username)
-
         share = get_shared_access(task_id, current_user, shared_with_user)
-
         share.permission_level = new_permission
         session.commit()
-
         return {"message": "Уровень доступа успешно обновлен"}
     except Exception as e:
         session.rollback()

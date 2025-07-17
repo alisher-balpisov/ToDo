@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import List, Literal
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Query
 
 from app.db.models import SharedAccessEnum, TaskShare, ToDo, User, session
 
@@ -91,6 +91,24 @@ todo_sort_mapping = {
     "name": ToDo.name.asc(),
     "status_false_first": ToDo.completion_status.asc(),
     "status_true_first": ToDo.completion_status.desc(),
-    "permission_view_first": TaskShare.permission_level.asc(), 
+    "permission_view_first": TaskShare.permission_level.asc(),
     "permission_edit_first": TaskShare.permission_level.desc()
 }
+
+
+def validate_sort(
+    sort: List[SortRule] = Query(default=["date_desc"]),
+) -> List[SortRule]:
+    if "date_desc" in sort and "date_asc" in sort:
+        raise ValueError(
+            "Нельзя использовать одновременно 'date_desc' и 'date_asc'")
+
+    if "status_false_first" in sort and "status_true_first" in sort:
+        raise ValueError(
+            "Нельзя использовать одновременно 'status_false_first' и 'status_true_first'")
+
+    if "permission_view_first" in sort and "permission_edit_first" in sort:
+        raise ValueError(
+            "Нельзя использовать одновременно 'permission_view_first' и 'permission_edit_first'")
+
+    return sort

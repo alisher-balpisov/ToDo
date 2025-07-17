@@ -1,0 +1,17 @@
+[project]
+name = "todo"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "email-validator>=2.2.0",
+    "fastapi>=0.116.1",
+    "passlib>=1.7.4",
+    "psycopg2>=2.9.10",
+    "pyjwt>=2.10.1",
+    "python-multipart>=0.0.20",
+    "pytz>=2025.2",
+    "sqlalchemy>=2.0.41",
+    "uvicorn>=0.35.0",
+]

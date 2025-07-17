@@ -8,7 +8,7 @@ class ToDoSchema(BaseModel):
     text: str | None = Field(default=None, max_length=4096)
     completion_status: bool | None = Field(default=None)
 
-
+    
 class TokenSchema(BaseModel):
     access_token: str
     token_type: str
