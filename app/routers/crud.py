@@ -4,8 +4,7 @@ from io import BytesIO
 from typing import List
 
 import pytz
-from fastapi import (APIRouter, Body, Depends, File, HTTPException, Query,
-                     UploadFile)
+from fastapi import APIRouter, Body, Depends, File, HTTPException, Query, UploadFile
 from fastapi.responses import StreamingResponse
 
 from app.auth.jwt_handler import get_current_active_user
@@ -46,6 +45,15 @@ async def upload_file(
     try:
         file_data = await uploaded_file.read()
         file_name = uploaded_file.filename
+
+        MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
+
+        if len(file_data) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=413,
+                detail="Размер файла превышает максимально допустимый (10MB)",
+            )
+
         task = (
             session.query(ToDo)
             .filter(ToDo.id == todo_id, ToDo.user_id == current_user.id)
@@ -70,8 +78,7 @@ def get_tasks(
     current_user: User = Depends(get_current_active_user),
 ):
     try:
-        tasks_query = session.query(ToDo).filter(
-            ToDo.user_id == current_user.id)
+        tasks_query = session.query(ToDo).filter(ToDo.user_id == current_user.id)
 
         order_by = []
 
@@ -168,7 +175,7 @@ def update_task_by_id(
         task.text = task_update.text if task_update.text else task.text
         task.completion_status = (
             task_update.completion_status
-            if task_update.completion_status
+            if task_update.completion_status is not None
             else task.completion_status
         )
 
@@ -220,8 +227,7 @@ def update_task_by_name(
         }
     except Exception as e:
         session.rollback()
-        check_handle_exception(
-            e, "Ошибка сервера при изменении задачи по имени")
+        check_handle_exception(e, "Ошибка сервера при изменении задачи по имени")
 
 
 @router.delete("/delete")

@@ -1,12 +1,16 @@
 import enum
 from datetime import datetime
+import os
 
 import pytz
 from sqlalchemy import (Boolean, Column, DateTime, Enum, ForeignKey, Integer,
                         LargeBinary, String, Text, create_engine)
 from sqlalchemy.orm import declarative_base, sessionmaker
 
-DATABASE_URL = "postgresql://postgres:200614@localhost:5432/base_db"
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL не задан в переменных окружения")
+
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 session = Session()

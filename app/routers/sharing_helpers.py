@@ -18,8 +18,7 @@ def check_owned_task(task_id: int, current_user: User) -> None | HTTPException:
 
 
 def get_existing_user(username: str) -> User | HTTPException:
-    shared_with_user = session.query(User).filter(
-        User.username == username).first()
+    shared_with_user = session.query(User).filter(User.username == username).first()
     if not shared_with_user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
     return shared_with_user
@@ -56,8 +55,7 @@ def check_view_permission(task_id: int, current_user: User) -> ToDo:
         .first()
     )
     if not task:
-        raise HTTPException(
-            status_code=403, detail="Нет доступа для просмотра задачи")
+        raise HTTPException(status_code=403, detail="Нет доступа для просмотра задачи")
     return task
 
 
@@ -68,21 +66,25 @@ def check_edit_permission(task_id: int, current_user: User) -> ToDo:
         .filter(
             ToDo.id == task_id,
             TaskShare.shared_with_id == current_user.id,
-            TaskShare.permission_level == SharedAccessEnum.EDIT
+            TaskShare.permission_level == SharedAccessEnum.EDIT,
         )
         .first()
     )
     if not task:
         raise HTTPException(
-            status_code=403, detail="Нет доступа для редактирования задачи")
+            status_code=403, detail="Нет доступа для редактирования задачи"
+        )
     return task
 
 
 SortRule = Literal[
-    "date_desc", "date_asc",
+    "date_desc",
+    "date_asc",
     "name",
-    "status_false_first", "status_true_first",
-    "permission_view_first", "permission_edit_first"
+    "status_false_first",
+    "status_true_first",
+    "permission_view_first",
+    "permission_edit_first",
 ]
 
 todo_sort_mapping = {
@@ -92,7 +94,7 @@ todo_sort_mapping = {
     "status_false_first": ToDo.completion_status.asc(),
     "status_true_first": ToDo.completion_status.desc(),
     "permission_view_first": TaskShare.permission_level.asc(),
-    "permission_edit_first": TaskShare.permission_level.desc()
+    "permission_edit_first": TaskShare.permission_level.desc(),
 }
 
 
@@ -100,15 +102,17 @@ def validate_sort(
     sort: List[SortRule] = Query(default=["date_desc"]),
 ) -> List[SortRule]:
     if "date_desc" in sort and "date_asc" in sort:
-        raise ValueError(
-            "Нельзя использовать одновременно 'date_desc' и 'date_asc'")
+        raise ValueError("Нельзя использовать одновременно 'date_desc' и 'date_asc'")
 
     if "status_false_first" in sort and "status_true_first" in sort:
         raise ValueError(
-            "Нельзя использовать одновременно 'status_false_first' и 'status_true_first'")
+            "Нельзя использовать одновременно 'status_false_first' и 'status_true_first'"
+        )
 
     if "permission_view_first" in sort and "permission_edit_first" in sort:
         raise ValueError(
-            "Нельзя использовать одновременно 'permission_view_first' и 'permission_edit_first'")
+            "Нельзя использовать одновременно 'permission_view_first' и 'permission_edit_first'"
+        )
 
     return sort
+
