@@ -20,6 +20,9 @@ from app.routers.sharing_helpers import (
     validate_sort,
     check_view_permission,
     check_edit_permission,
+    get_task_collaborators,
+    check_task_access_level,
+    check_edit_permission,
 )
 
 router = APIRouter(prefix="/tasks/share")
@@ -176,7 +179,6 @@ def update_share_permission(
 def get_shared_task(
     id: int = Query(ge=1), current_user: User = Depends(get_current_active_user)
 ):
-    """Получить конкретную расшаренную задачу для просмотра"""
     try:
         task = check_view_permission(id, current_user)
 
@@ -192,9 +194,7 @@ def get_shared_task(
 
         if not task_info:
             raise HTTPException(status_code=404, detail="Задача не найдена")
-
         task_obj, owner_username, permission_level = task_info
-
         return {
             "id": task_obj.id,
             "task_name": task_obj.name,
@@ -215,9 +215,7 @@ def edit_shared_task(
     task_update: ToDoSchema = Body(),
     current_user: User = Depends(get_current_active_user),
 ):
-    """Редактировать расшаренную задачу (только с правами EDIT)"""
     try:
-
         task = check_edit_permission(id, current_user)
 
         if task_update.name is not None:
@@ -256,8 +254,7 @@ async def upload_file_to_shared_task(
 ):
     try:
         task = check_edit_permission(task_id, current_user)
-
-        MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
+        MAX_FILE_SIZE = 20 * 1024 * 1024
         file_data = await uploaded_file.read()
 
         if len(file_data) > MAX_FILE_SIZE:
@@ -281,15 +278,11 @@ async def upload_file_to_shared_task(
 def toggle_shared_task_status(
     task_id: int = Query(ge=1), current_user: User = Depends(get_current_active_user)
 ):
-    """Переключить статус выполнения расшаренной задачи"""
     try:
-        # Проверяем права на редактирование
         task = check_edit_permission(task_id, current_user)
 
-        # Переключаем статус
         task.completion_status = not task.completion_status
         session.commit()
-
         return {
             "message": f"Статус задачи изменен на {'выполнено' if task.completion_status else 'не выполнено'}",
             "task_id": task.id,
@@ -299,3 +292,46 @@ def toggle_shared_task_status(
     except Exception as e:
         session.rollback()
         check_handle_exception(e, "Ошибка сервера при изменении статуса задачи")
+
+
+@router.get("/collaborators")
+def get_task_collaborators_endpoint(
+    task_id: int = Query(ge=1), current_user: User = Depends(get_current_active_user)
+):
+    try:
+        collaborators = get_task_collaborators(task_id, current_user)
+        return {
+            "task_id": task_id,
+            "total_collaborators": len(collaborators),
+            "collaborators": collaborators,
+        }
+
+    except Exception as e:
+        check_handle_exception(e, "Ошибка сервера при получении списка соавторов")
+
+
+@router.get("/my_permissions")
+def get_my_task_permissions(
+    task_id: int = Query(ge=1), current_user: User = Depends(get_current_active_user)
+):
+    try:
+        task, access_level = check_task_access_level(task_id, current_user)
+
+        permissions = {
+            "can_view": True,
+            "can_edit": access_level == SharedAccessEnum.EDIT,
+            "can_delete": task.user_id == current_user.id,
+            "can_share": task.user_id == current_user.id,
+            "can_upload_files": access_level == SharedAccessEnum.EDIT,
+            "can_change_status": access_level == SharedAccessEnum.EDIT,
+            "is_owner": task.user_id == current_user.id,
+        }
+        return {
+            "task_id": task_id,
+            "task_name": task.name,
+            "access_level": access_level.value if access_level else "owner",
+            "permissions": permissions,
+        }
+
+    except Exception as e:
+        check_handle_exception(e, "Ошибка сервера при получении прав доступа")

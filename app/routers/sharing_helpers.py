@@ -116,3 +116,73 @@ def validate_sort(
 
     return sort
 
+
+def check_task_access_level(
+    task_id: int, current_user: User
+) -> tuple[ToDo, SharedAccessEnum]:
+
+    owned_task = (
+        session.query(ToDo)
+        .filter(ToDo.id == task_id, ToDo.user_id == current_user.id)
+        .first()
+    )
+
+    if owned_task:
+        return owned_task, SharedAccessEnum.EDIT
+
+    shared_task = (
+        session.query(ToDo, TaskShare.permission_level)
+        .join(TaskShare, TaskShare.task_id == ToDo.id)
+        .filter(ToDo.id == task_id, TaskShare.shared_with_id == current_user.id)
+        .first()
+    )
+
+    if not shared_task:
+        raise HTTPException(status_code=403, detail="Нет доступа к данной задаче")
+
+    task, permission_level = shared_task
+    return task, permission_level
+
+
+def get_task_collaborators(task_id: int, current_user: User) -> list[dict]:
+    """Получить список всех пользователей, имеющих доступ к задаче"""
+
+    task, access_level = check_task_access_level(task_id, current_user)
+
+    owner = session.query(User).filter(User.id == task.user_id).first()
+
+    collaborators = []
+
+    if owner:
+        collaborators.append(
+            {
+                "user_id": owner.id,
+                "username": owner.username,
+                "email": owner.email,
+                "role": "owner",
+                "permission_level": "full_access",
+                "can_revoke": False,
+            }
+        )
+
+    shares = (
+        session.query(TaskShare, User)
+        .join(User, User.id == TaskShare.shared_with_id)
+        .filter(TaskShare.task_id == task_id)
+        .all()
+    )
+
+    for share, user in shares:
+        collaborators.append(
+            {
+                "user_id": user.id,
+                "username": user.username,
+                "email": user.email,
+                "role": "collaborator",
+                "permission_level": share.permission_level.value,
+                "shared_date": share.date_time.strftime("%Y-%m-%d | %H:%M:%S"),
+                "can_revoke": task.user_id == current_user.id,
+            }
+        )
+
+    return collaborators

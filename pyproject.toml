@@ -10,6 +10,7 @@ dependencies = [
     "passlib>=1.7.4",
     "psycopg2>=2.9.10",
     "pyjwt>=2.10.1",
+    "pytest>=8.4.1",
     "python-multipart>=0.0.20",
     "pytz>=2025.2",
     "sqlalchemy>=2.0.41",
