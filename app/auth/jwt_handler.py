@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 
 import jwt
@@ -6,13 +7,16 @@ from fastapi.security import OAuth2PasswordBearer
 from jwt.exceptions import InvalidTokenError
 from passlib.hash import bcrypt
 
-import os
-
 from app.db.models import User, session
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY не задан в переменных окружения")
+
+''' .env 
+DATABASE_URL="postgresql://Alisher:200614@localhost:5432/base_db 
+SECRET_KEY="SECRET_KEY"
+'''
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60

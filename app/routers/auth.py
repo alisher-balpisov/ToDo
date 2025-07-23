@@ -3,12 +3,9 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 
-from app.auth.jwt_handler import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    authenticate_user,
-    create_access_token,
-    get_hash_password,
-)
+from app.auth.jwt_handler import (ACCESS_TOKEN_EXPIRE_MINUTES,
+                                  authenticate_user, create_access_token,
+                                  get_hash_password)
 from app.db.models import User, session
 from app.db.schemas import TokenSchema, UserCreateSchema
 from app.routers.handle_exception import check_handle_exception
@@ -39,7 +36,8 @@ def register(user_data: UserCreateSchema):
         return {"message": "Пользователь успешно зарегистрировался"}
     except Exception as e:
         session.rollback()
-        check_handle_exception(e, "Ошибка сервера при регистрации пользователя")
+        check_handle_exception(
+            e, "Ошибка сервера при регистрации пользователя")
 
 
 @router.post("/login")

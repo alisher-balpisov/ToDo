@@ -2,28 +2,22 @@ import mimetypes
 from io import BytesIO
 from typing import List
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, UploadFile, File
+from fastapi import (APIRouter, Body, Depends, File, HTTPException, Query,
+                     UploadFile)
 from fastapi.responses import StreamingResponse
 from sqlalchemy import or_
 
 from app.auth.jwt_handler import get_current_active_user
 from app.db.models import SharedAccessEnum, TaskShare, ToDo, User, session
 from app.db.schemas import TaskShareSchema, ToDoSchema
-from app.routers.crud_helpers import validate_sort
 from app.routers.handle_exception import check_handle_exception
-from app.routers.sharing_helpers import (
-    SortRule,
-    check_owned_task,
-    get_existing_user,
-    get_shared_access,
-    todo_sort_mapping,
-    validate_sort,
-    check_view_permission,
-    check_edit_permission,
-    get_task_collaborators,
-    check_task_access_level,
-    check_edit_permission,
-)
+from app.routers.sharing_helpers import (SortRule, check_edit_permission,
+                                         check_owned_task,
+                                         check_task_access_level,
+                                         check_view_permission,
+                                         get_existing_user, get_shared_access,
+                                         get_task_collaborators,
+                                         todo_sort_mapping, validate_sort)
 
 router = APIRouter(prefix="/tasks/share")
 
@@ -64,7 +58,8 @@ def share_task(
         return {"message": "Задача успешно расшарена с пользователем"}
     except Exception as e:
         session.rollback()
-        check_handle_exception(e, "Ошибка сервера при предоставлении доступа к задаче")
+        check_handle_exception(
+            e, "Ошибка сервера при предоставлении доступа к задаче")
 
 
 @router.get("/tasks")
@@ -77,7 +72,8 @@ def get_shared_tasks(
     try:
         query = (
             session.query(
-                ToDo, User.username.label("owner_username"), TaskShare.permission_level
+                ToDo, User.username.label(
+                    "owner_username"), TaskShare.permission_level
             )
             .join(TaskShare, TaskShare.task_id == ToDo.id)
             .join(User, User.id == ToDo.user_id)
@@ -104,7 +100,8 @@ def get_shared_tasks(
             for task, owner_username, permission_level in tasks
         ]
     except Exception as e:
-        check_handle_exception(e, "Ошибка сервера при получении расшаренных задач")
+        check_handle_exception(
+            e, "Ошибка сервера при получении расшаренных задач")
 
 
 @router.get("/task_file")
@@ -172,7 +169,8 @@ def update_share_permission(
         return {"message": "Уровень доступа успешно обновлен"}
     except Exception as e:
         session.rollback()
-        check_handle_exception(e, "Ошибка сервера при обновлении уровня доступа")
+        check_handle_exception(
+            e, "Ошибка сервера при обновлении уровня доступа")
 
 
 @router.get("/task")
@@ -180,11 +178,12 @@ def get_shared_task(
     id: int = Query(ge=1), current_user: User = Depends(get_current_active_user)
 ):
     try:
-        task = check_view_permission(id, current_user)
+        task_info = check_view_permission(id, current_user)
 
         task_info = (
             session.query(
-                ToDo, User.username.label("owner_username"), TaskShare.permission_level
+                ToDo, User.username.label(
+                    "owner_username"), TaskShare.permission_level
             )
             .join(TaskShare, TaskShare.task_id == ToDo.id)
             .join(User, User.id == ToDo.user_id)
@@ -206,7 +205,8 @@ def get_shared_task(
             "permission_level": permission_level,
         }
     except Exception as e:
-        check_handle_exception(e, "Ошибка сервера при получении расшаренной задачи")
+        check_handle_exception(
+            e, "Ошибка сервера при получении расшаренной задачи")
 
 
 @router.put("/edit_task")
@@ -291,7 +291,8 @@ def toggle_shared_task_status(
 
     except Exception as e:
         session.rollback()
-        check_handle_exception(e, "Ошибка сервера при изменении статуса задачи")
+        check_handle_exception(
+            e, "Ошибка сервера при изменении статуса задачи")
 
 
 @router.get("/collaborators")
@@ -307,7 +308,8 @@ def get_task_collaborators_endpoint(
         }
 
     except Exception as e:
-        check_handle_exception(e, "Ошибка сервера при получении списка соавторов")
+        check_handle_exception(
+            e, "Ошибка сервера при получении списка соавторов")
 
 
 @router.get("/my_permissions")

@@ -44,8 +44,8 @@ def get_tasks_stats(current_user: User = Depends(get_current_active_user)):
         query = session.query(ToDo).filter(ToDo.user_id == current_user.id)
 
         total = query.count()
-        completed = query.filter(ToDo.completion_status == True).count()
-        uncompleted = query.filter(ToDo.completion_status == False).count()
+        completed = query.filter(ToDo.completion_status).count()
+        uncompleted = query.filter(ToDo.completion_status is None).count()
         completion_percentage = round(
             (completed / total) * 100 if total > 0 else 0, 2)
         return {
