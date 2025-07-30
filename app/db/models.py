@@ -1,20 +1,10 @@
 import enum
-from datetime import datetime
-import os
+from datetime import datetime, timezone
 
-import pytz
 from sqlalchemy import (Boolean, Column, DateTime, Enum, ForeignKey, Integer,
-                        LargeBinary, String, Text, create_engine)
-from sqlalchemy.orm import declarative_base, sessionmaker
+                        LargeBinary, String, Text)
 
-DATABASE_URL = os.getenv("DATABASE_URL")
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL не задан в переменных окружения")
-
-engine = create_engine(DATABASE_URL)
-Session = sessionmaker(bind=engine)
-session = Session()
-Base = declarative_base()
+from app.db.database import Base
 
 
 class ToDo(Base):
@@ -26,7 +16,7 @@ class ToDo(Base):
     text = Column(Text)
     completion_status = Column(Boolean, default=False, index=True)
     date_time = Column(DateTime, default=datetime.now(
-        pytz.timezone("Asia/Almaty")))
+        timezone.utc).astimezone())
 
     file_data = Column(LargeBinary, nullable=True, default=None)
     file_name = Column(String, nullable=True, default=None)
@@ -57,7 +47,4 @@ class TaskShare(Base):
     permission_level = Column(Enum(SharedAccessEnum),
                               default=SharedAccessEnum.VIEW)
     date_time = Column(DateTime, default=datetime.now(
-        pytz.timezone("Asia/Almaty")))
-
-
-Base.metadata.create_all(engine)
+        timezone.utc).astimezone())

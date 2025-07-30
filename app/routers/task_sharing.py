@@ -1,14 +1,16 @@
 import mimetypes
 from io import BytesIO
-from typing import List
+from typing import Any, List
 
 from fastapi import (APIRouter, Body, Depends, File, HTTPException, Query,
                      UploadFile)
 from fastapi.responses import StreamingResponse
 from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
 from app.auth.jwt_handler import get_current_active_user
-from app.db.models import SharedAccessEnum, TaskShare, ToDo, User, session
+from app.db.database import get_db
+from app.db.models import SharedAccessEnum, TaskShare, ToDo, User
 from app.db.schemas import TaskShareSchema, ToDoSchema
 from app.routers.handle_exception import check_handle_exception
 from app.routers.sharing_helpers import (SortRule, check_edit_permission,
@@ -24,8 +26,10 @@ router = APIRouter(prefix="/tasks/share")
 
 @router.post("/share_task")
 def share_task(
-    share_data: TaskShareSchema, current_user: User = Depends(get_current_active_user)
-):
+    share_data: TaskShareSchema,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> dict[str, str]:
     try:
         check_owned_task(share_data.task_id, current_user)
         shared_with_user = get_existing_user(share_data.shared_with_username)
@@ -35,7 +39,7 @@ def share_task(
                 status_code=400, detail="Нельзя поделиться задачей с самим собой"
             )
         already_shared = (
-            session.query(TaskShare)
+            db.query(TaskShare)
             .filter(
                 TaskShare.task_id == share_data.task_id,
                 TaskShare.shared_with_id == shared_with_user.id,
@@ -53,11 +57,11 @@ def share_task(
             shared_with_id=shared_with_user.id,
             permission_level=share_data.permission_level,
         )
-        session.add(new_share)
-        session.commit()
+        db.add(new_share)
+        db.commit()
         return {"message": "Задача успешно расшарена с пользователем"}
     except Exception as e:
-        session.rollback()
+        db.rollback()
         check_handle_exception(
             e, "Ошибка сервера при предоставлении доступа к задаче")
 
@@ -68,10 +72,11 @@ def get_shared_tasks(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     current_user: User = Depends(get_current_active_user),
-):
+    db: Session = Depends(get_db)
+) -> list[dict]:
     try:
         query = (
-            session.query(
+            db.query(
                 ToDo, User.username.label(
                     "owner_username"), TaskShare.permission_level
             )
@@ -92,7 +97,7 @@ def get_shared_tasks(
                 "id": task.id,
                 "task_name": task.name,
                 "completion_status": task.completion_status,
-                "date_time": task.date_time.strftime("%Y-%m-%d | %H:%M:%S"),
+                "date_time": task.date_time.isoformat(),
                 "text": task.text,
                 "owner_username": owner_username,
                 "permission_level": permission_level,
@@ -106,11 +111,13 @@ def get_shared_tasks(
 
 @router.get("/task_file")
 def get_shared_task_file(
-    id: int, current_user: User = Depends(get_current_active_user)
-):
+    id: int,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> StreamingResponse:
     try:
         task = (
-            session.query(ToDo)
+            db.query(ToDo)
             .join(TaskShare, TaskShare.task_id == ToDo.id)
             .filter(
                 ToDo.id == id,
@@ -139,17 +146,19 @@ def get_shared_task_file(
 
 @router.delete("/delete")
 def unshare_task(
-    task_id: int, username: str, current_user: User = Depends(get_current_active_user)
-):
+    task_id: int, username: str,
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> dict[str, str]:
     try:
         check_owned_task(task_id, current_user)
         shared_with_user = get_existing_user(username)
         share = get_shared_access(task_id, current_user, shared_with_user)
-        session.delete(share)
-        session.commit()
+        db.delete(share)
+        db.commit()
         return {"message": "Доступ к задаче успешно отозван"}
     except Exception as e:
-        session.rollback()
+        db.rollback()
         check_handle_exception(e, "Ошибка сервера при отзыве доступа к задаче")
 
 
@@ -159,29 +168,32 @@ def update_share_permission(
     username: str,
     new_permission: SharedAccessEnum,
     current_user: User = Depends(get_current_active_user),
-):
+    db: Session = Depends(get_db)
+) -> dict[str, str]:
     try:
         check_owned_task(task_id, current_user)
         shared_with_user = get_existing_user(username)
         share = get_shared_access(task_id, current_user, shared_with_user)
         share.permission_level = new_permission
-        session.commit()
+        db.commit()
         return {"message": "Уровень доступа успешно обновлен"}
     except Exception as e:
-        session.rollback()
+        db.rollback()
         check_handle_exception(
             e, "Ошибка сервера при обновлении уровня доступа")
 
 
 @router.get("/task")
 def get_shared_task(
-    id: int = Query(ge=1), current_user: User = Depends(get_current_active_user)
-):
+    id: int = Query(ge=1),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> dict[str, Any]:
     try:
         task_info = check_view_permission(id, current_user)
 
         task_info = (
-            session.query(
+            db.query(
                 ToDo, User.username.label(
                     "owner_username"), TaskShare.permission_level
             )
@@ -204,6 +216,7 @@ def get_shared_task(
             "owner_username": owner_username,
             "permission_level": permission_level,
         }
+
     except Exception as e:
         check_handle_exception(
             e, "Ошибка сервера при получении расшаренной задачи")
@@ -214,7 +227,8 @@ def edit_shared_task(
     id: int = Query(ge=1),
     task_update: ToDoSchema = Body(),
     current_user: User = Depends(get_current_active_user),
-):
+    db: Session = Depends(get_db)
+) -> dict[str, Any]:
     try:
         task = check_edit_permission(id, current_user)
 
@@ -225,10 +239,10 @@ def edit_shared_task(
         if task_update.completion_status is not None:
             task.completion_status = task_update.completion_status
 
-        session.commit()
-        session.refresh(task)
+        db.commit()
+        db.refresh(task)
 
-        owner = session.query(User).filter(User.id == task.user_id).first()
+        owner = db.query(User).filter(User.id == task.user_id).first()
 
         return {
             "message": "Расшаренная задача успешно обновлена",
@@ -239,8 +253,9 @@ def edit_shared_task(
             "text": task.text,
             "owner_username": owner.username if owner else "Неизвестен",
         }
+
     except Exception as e:
-        session.rollback()
+        db.rollback()
         check_handle_exception(
             e, "Ошибка сервера при редактировании расшаренной задачи"
         )
@@ -251,7 +266,8 @@ async def upload_file_to_shared_task(
     uploaded_file: UploadFile = File(),
     task_id: int = Query(),
     current_user: User = Depends(get_current_active_user),
-):
+    db: Session = Depends(get_db)
+) -> dict[str, str]:
     try:
         task = check_edit_permission(task_id, current_user)
         MAX_FILE_SIZE = 20 * 1024 * 1024
@@ -265,10 +281,11 @@ async def upload_file_to_shared_task(
 
         task.file_data = file_data
         task.file_name = uploaded_file.filename
-        session.commit()
+        db.commit()
         return {"message": "Файл успешно загружен к расшаренной задаче"}
+
     except Exception as e:
-        session.rollback()
+        db.rollback()
         check_handle_exception(
             e, "Ошибка сервера при загрузке файла к расшаренной задаче"
         )
@@ -276,13 +293,15 @@ async def upload_file_to_shared_task(
 
 @router.patch("/toggle_status")
 def toggle_shared_task_status(
-    task_id: int = Query(ge=1), current_user: User = Depends(get_current_active_user)
-):
+    task_id: int = Query(ge=1),
+    current_user: User = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
+) -> dict[str, Any]:
     try:
         task = check_edit_permission(task_id, current_user)
 
         task.completion_status = not task.completion_status
-        session.commit()
+        db.commit()
         return {
             "message": f"Статус задачи изменен на {'выполнено' if task.completion_status else 'не выполнено'}",
             "task_id": task.id,
@@ -290,15 +309,16 @@ def toggle_shared_task_status(
         }
 
     except Exception as e:
-        session.rollback()
+        db.rollback()
         check_handle_exception(
             e, "Ошибка сервера при изменении статуса задачи")
 
 
 @router.get("/collaborators")
 def get_task_collaborators_endpoint(
-    task_id: int = Query(ge=1), current_user: User = Depends(get_current_active_user)
-):
+    task_id: int = Query(ge=1),
+    current_user: User = Depends(get_current_active_user),
+) -> dict[str, Any]:
     try:
         collaborators = get_task_collaborators(task_id, current_user)
         return {
@@ -314,8 +334,9 @@ def get_task_collaborators_endpoint(
 
 @router.get("/my_permissions")
 def get_my_task_permissions(
-    task_id: int = Query(ge=1), current_user: User = Depends(get_current_active_user)
-):
+    task_id: int = Query(ge=1),
+    current_user: User = Depends(get_current_active_user)
+) -> dict[str, Any]:
     try:
         task, access_level = check_task_access_level(task_id, current_user)
 

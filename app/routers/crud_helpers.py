@@ -21,7 +21,8 @@ def validate_sort(
     sort: List[SortRule] = Query(default=["date_desc"]),
 ) -> List[SortRule]:
     if "date_desc" in sort and "date_asc" in sort:
-        raise ValueError("Нельзя использовать одновременно 'date_desc' и 'date_asc'")
+        raise ValueError(
+            "Нельзя использовать одновременно 'date_desc' и 'date_asc'")
     if "status_false_first" in sort and "status_true_first" in sort:
         raise ValueError(
             "Нельзя использовать одновременно 'status_false_first' и 'status_true_first'"
