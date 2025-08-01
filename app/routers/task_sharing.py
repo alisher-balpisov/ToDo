@@ -2,8 +2,8 @@ import mimetypes
 from io import BytesIO
 from typing import Any, List
 
-from fastapi import (APIRouter, Body, Depends, File, HTTPException, Query,
-                     UploadFile)
+from fastapi import (APIRouter, Body, Depends, File, HTTPException, Path,
+                     Query, UploadFile)
 from fastapi.responses import StreamingResponse
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
@@ -21,10 +21,11 @@ from app.routers.sharing_helpers import (SortRule, check_edit_permission,
                                          get_task_collaborators,
                                          todo_sort_mapping, validate_sort)
 
-router = APIRouter(prefix="/tasks/share")
+router = APIRouter()
+# prefix="/tasks/share"
 
 
-@router.post("/share_task")
+@router.post("/tasks/{TaskShareSchema.task_id}/shares")
 def share_task(
     share_data: TaskShareSchema,
     current_user: User = Depends(get_current_active_user),
@@ -66,7 +67,7 @@ def share_task(
             e, "Ошибка сервера при предоставлении доступа к задаче")
 
 
-@router.get("/tasks")
+@router.get("/shared-tasks")
 def get_shared_tasks(
     sort: List[SortRule] = Depends(validate_sort),
     skip: int = Query(0, ge=0),
@@ -109,9 +110,9 @@ def get_shared_tasks(
             e, "Ошибка сервера при получении расшаренных задач")
 
 
-@router.get("/task_file")
+@router.get("/shared-tasks/{task_id}/file")
 def get_shared_task_file(
-    id: int,
+    task_id: int = Path(ge=1),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> StreamingResponse:
@@ -120,7 +121,7 @@ def get_shared_task_file(
             db.query(ToDo)
             .join(TaskShare, TaskShare.task_id == ToDo.id)
             .filter(
-                ToDo.id == id,
+                ToDo.id == task_id,
                 or_(
                     ToDo.user_id == current_user.id,
                     TaskShare.shared_with_id == current_user.id,
@@ -144,9 +145,10 @@ def get_shared_task_file(
         check_handle_exception(e, "Ошибка сервера при получении файла")
 
 
-@router.delete("/delete")
+@router.delete("/tasks/{task_id}/shares/{username}")
 def unshare_task(
-    task_id: int, username: str,
+    task_id: int = Path(ge=1),
+    username: str = Path(max_length=30),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> dict[str, str]:
@@ -162,11 +164,11 @@ def unshare_task(
         check_handle_exception(e, "Ошибка сервера при отзыве доступа к задаче")
 
 
-@router.put("/update_permission")
+@router.put("/tasks/{task_id}/shares/{username}")
 def update_share_permission(
-    task_id: int,
-    username: str,
     new_permission: SharedAccessEnum,
+    task_id: int = Path(ge=1),
+    username: str = Path(max_length=30),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> dict[str, str]:
@@ -183,14 +185,14 @@ def update_share_permission(
             e, "Ошибка сервера при обновлении уровня доступа")
 
 
-@router.get("/task")
+@router.get("/shared-tasks/{task_id}")
 def get_shared_task(
-    id: int = Query(ge=1),
+    task_id: int = Path(ge=1),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> dict[str, Any]:
     try:
-        task_info = check_view_permission(id, current_user)
+        task_info = check_view_permission(task_id, current_user)
 
         task_info = (
             db.query(
@@ -199,8 +201,10 @@ def get_shared_task(
             )
             .join(TaskShare, TaskShare.task_id == ToDo.id)
             .join(User, User.id == ToDo.user_id)
-            .filter(ToDo.id == id, TaskShare.shared_with_id == current_user.id)
-            .first()
+            .filter(
+                ToDo.id == task_id,
+                TaskShare.shared_with_id == current_user.id
+            ).first()
         )
 
         if not task_info:
@@ -222,15 +226,15 @@ def get_shared_task(
             e, "Ошибка сервера при получении расшаренной задачи")
 
 
-@router.put("/edit_task")
+@router.put("/shared-tasks/{task_id}")
 def edit_shared_task(
-    id: int = Query(ge=1),
+    task_id: int = Path(ge=1),
     task_update: ToDoSchema = Body(),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> dict[str, Any]:
     try:
-        task = check_edit_permission(id, current_user)
+        task = check_edit_permission(task_id, current_user)
 
         if task_update.name is not None:
             task.name = task_update.name
@@ -261,10 +265,10 @@ def edit_shared_task(
         )
 
 
-@router.post("/upload_file_to_shared")
+@router.post("/shared-tasks/{task_id}/file")
 async def upload_file_to_shared_task(
     uploaded_file: UploadFile = File(),
-    task_id: int = Query(),
+    task_id: int = Path(ge=1),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> dict[str, str]:
@@ -291,9 +295,9 @@ async def upload_file_to_shared_task(
         )
 
 
-@router.patch("/toggle_status")
+@router.patch("/shared-tasks/{task_id}")
 def toggle_shared_task_status(
-    task_id: int = Query(ge=1),
+    task_id: int = Path(ge=1),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> dict[str, Any]:
@@ -314,9 +318,9 @@ def toggle_shared_task_status(
             e, "Ошибка сервера при изменении статуса задачи")
 
 
-@router.get("/collaborators")
+@router.get("/tasks/{task_id}/collaborators")
 def get_task_collaborators_endpoint(
-    task_id: int = Query(ge=1),
+    task_id: int = Path(ge=1),
     current_user: User = Depends(get_current_active_user),
 ) -> dict[str, Any]:
     try:
@@ -332,9 +336,9 @@ def get_task_collaborators_endpoint(
             e, "Ошибка сервера при получении списка соавторов")
 
 
-@router.get("/my_permissions")
+@router.get("/shared-tasks/{task_id}/permissions")
 def get_my_task_permissions(
-    task_id: int = Query(ge=1),
+    task_id: int = Path(ge=1),
     current_user: User = Depends(get_current_active_user)
 ) -> dict[str, Any]:
     try:

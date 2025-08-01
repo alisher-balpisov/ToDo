@@ -11,7 +11,7 @@ def check_owned_task(
     task_id: int,
     current_user: User,
     db: Session = Depends(get_db)
-) -> None | HTTPException:
+) -> None:
 
     task = (
         db.query(ToDo)
@@ -24,7 +24,7 @@ def check_owned_task(
         )
 
 
-def get_existing_user(username: str, db: Session = Depends(get_db)) -> User | HTTPException:
+def get_existing_user(username: str, db: Session = Depends(get_db)) -> User:
     shared_with_user = db.query(User).filter(User.username == username).first()
     if not shared_with_user:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
@@ -35,7 +35,7 @@ def get_shared_access(
     task_id: int, current_user: User,
     shared_with_user: User,
     db: Session = Depends(get_db)
-) -> TaskShare | HTTPException:
+) -> TaskShare:
 
     share = (
         db.query(TaskShare)

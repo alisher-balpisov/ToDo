@@ -1,10 +1,10 @@
 import mimetypes
 from datetime import datetime, timezone
 from io import BytesIO
-from typing import List
+from typing import Any, List
 
-from fastapi import (APIRouter, Body, Depends, File, HTTPException, Query,
-                     UploadFile, status)
+from fastapi import (APIRouter, Body, Depends, File, HTTPException, Path,
+                     Query, UploadFile, status)
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
@@ -18,7 +18,7 @@ from app.routers.handle_exception import check_handle_exception
 router = APIRouter(prefix="/tasks")
 
 
-@router.post("/create", status_code=status.HTTP_201_CREATED)
+@router.post("/", status_code=status.HTTP_201_CREATED)
 def create_task(
     task: ToDoSchema = Body(),
     current_user: User = Depends(get_current_active_user),
@@ -45,10 +45,10 @@ def create_task(
         check_handle_exception(e, "Ошибка сервера при создании задачи")
 
 
-@router.post("/upload_file")
+@router.post("/{id}/file")
 async def upload_file(
     uploaded_file: UploadFile = File(),
-    todo_id: int = Query(),
+    id: int = Path(ge=1),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
 ) -> dict[str, str] | None:
@@ -81,14 +81,14 @@ async def upload_file(
         check_handle_exception(e, "Ошибка сервера при загрузке файла")
 
 
-@router.get("/list")
+@router.get("/")
 def get_tasks(
     sort: List[SortRule] = Depends(validate_sort),
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> list[dict[str, ToDo | int]] | None:
+) -> list[dict[str, Any]]:
     try:
         tasks_query = db.query(ToDo).filter(ToDo.user_id == current_user.id)
 
@@ -122,11 +122,11 @@ def get_tasks(
         check_handle_exception(e, "Ошибка сервера при выводе задач")
 
 
-@router.get("/task_file/{id}")
+@router.get("/{id}/file")
 def get_task_file(
-        id: int,
+        id: int = Path(ge=1),
         current_user: User = Depends(get_current_active_user),
-        db: Session = Depends(get_db)):
+        db: Session = Depends(get_db)) -> StreamingResponse:
     try:
         task = (
             db.query(ToDo).filter(
@@ -153,16 +153,18 @@ def get_task_file(
         check_handle_exception(e, "Ошибка сервера при получении файла")
 
 
-@router.get("/task/{id}")
+@router.get("/{id}")
 def get_task(
-    id: int = Query(ge=1), current_user: User = Depends(get_current_active_user),
+    id: int = Path(ge=1),
+    current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> dict[str, ToDo]:
+) -> dict[str, Any]:
     try:
         task = (
-            db.query(ToDo)
-            .filter(ToDo.id == id, ToDo.user_id == current_user.id)
-            .first()
+            db.query(ToDo).filter(
+                ToDo.id == id,
+                ToDo.user_id == current_user.id
+            ).first()
         )
 
         if task is None:
@@ -180,13 +182,13 @@ def get_task(
         check_handle_exception(e, "Ошибка сервера при получении задачи")
 
 
-@router.put("/update/by_id/{id}")
+@router.put("/{id}")
 def update_task_by_id(
-    id: int = Query(ge=1),
+    id: int = Path(ge=1),
     task_update: ToDoSchema = Body(),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> dict[str, ToDo]:
+) -> dict[str, Any]:
     try:
         task = db.query(ToDo).filter(
             ToDo.id == id,
@@ -225,13 +227,13 @@ def update_task_by_id(
         check_handle_exception(e, "Ошибка сервера при изменении задачи по id")
 
 
-@router.put("/update/by_name/{search_name}")
+@router.put("/by_name/{search_name}")
 def update_task_by_name(
-    search_name: str = Query(),
+    search_name: str = Path(max_length=30),
     task_update: ToDoSchema = Body(),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> dict[str, ToDo | str]:
+) -> dict[str, Any]:
     try:
         task = db.query(ToDo).filter(
             ToDo.name == search_name,
@@ -271,12 +273,12 @@ def update_task_by_name(
             e, "Ошибка сервера при изменении задачи по имени")
 
 
-@router.delete("/delete/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(
-    id: int = Query(ge=1),
+    id: int = Path(ge=1),
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> dict[str, str]:
+) -> None:
     try:
         task = db.query(ToDo).filter(
             ToDo.id == id,
@@ -291,8 +293,8 @@ def delete_task(
 
         db.delete(task)
         db.commit()
-        return {"message": "ToDo удалён"}
-
+        return 
+    
     except Exception as e:
         db.rollback()
         check_handle_exception(e, "Ошибка сервера при удалении задачи")

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
+from typing import Any
 
 from app.auth.jwt_handler import get_current_active_user
 from app.db.database import get_db
@@ -15,7 +16,7 @@ def search_tasks(
     search_query: str,
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> list[dict[str, ToDo]]:
+) -> list[dict[str, Any]]:
     try:
         search_pattern = f"%{search_query}%"
         tasks = (
@@ -46,7 +47,7 @@ def search_tasks(
 def get_tasks_stats(
     current_user: User = Depends(get_current_active_user),
     db: Session = Depends(get_db)
-) -> dict[str, int | float]:
+) -> dict[str, Any]:
     try:
         query = db.query(ToDo).filter(ToDo.user_id == current_user.id)
 
