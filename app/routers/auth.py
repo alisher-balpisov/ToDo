@@ -10,9 +10,9 @@ from app.auth.jwt_handler import (ACCESS_TOKEN_EXPIRE_MINUTES,
 from app.db.database import get_db
 from app.db.models import User
 from app.db.schemas import TokenSchema, UserCreateSchema
-from app.routers.handle_exception import check_handle_exception
+from app.handle_exception import handle_server_exception
 
-router = APIRouter(prefix="/auth")
+router = APIRouter()
 
 
 @router.post("/register")
@@ -46,10 +46,8 @@ def register(user_data: UserCreateSchema, db: Session = Depends(get_db)) -> dict
         raise
     except Exception as e:
         db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка сервера при регистрации пользователя: {str(e)}"
-        )
+        handle_server_exception(
+            e, "Ошибка сервера при регистрации пользователя")
 
 
 @router.post("/login")
@@ -75,7 +73,4 @@ async def login(
         return TokenSchema(access_token=access_token, token_type="bearer")
 
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Ошибка сервера при входе пользователя: {str(e)}"
-        )
+        handle_server_exception(e, "Ошибка сервера при входе пользователя")

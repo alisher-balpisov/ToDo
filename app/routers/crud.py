@@ -1,21 +1,18 @@
-import mimetypes
 from datetime import datetime, timezone
-from io import BytesIO
 from typing import Any, List
 
-from fastapi import (APIRouter, Body, Depends, File, HTTPException, Path,
-                     Query, UploadFile, status)
-from fastapi.responses import StreamingResponse
+from fastapi import (APIRouter, Body, Depends, HTTPException, Path,
+                     Query, status)
 from sqlalchemy.orm import Session
 
 from app.auth.jwt_handler import get_current_active_user
 from app.db.database import get_db
 from app.db.models import ToDo, User
 from app.db.schemas import ToDoSchema
-from app.routers.crud_helpers import SortRule, todo_sort_mapping, validate_sort
-from app.routers.handle_exception import check_handle_exception
+from app.routers.helpers.crud_helpers import SortRule, todo_sort_mapping, validate_sort
+from app.handle_exception import handle_server_exception
 
-router = APIRouter(prefix="/tasks")
+router = APIRouter()
 
 
 @router.post("/", status_code=status.HTTP_201_CREATED)
@@ -42,43 +39,7 @@ def create_task(
 
     except Exception as e:
         db.rollback()
-        check_handle_exception(e, "Ошибка сервера при создании задачи")
-
-
-@router.post("/{id}/file")
-async def upload_file(
-    uploaded_file: UploadFile = File(),
-    id: int = Path(ge=1),
-    current_user: User = Depends(get_current_active_user),
-    db: Session = Depends(get_db)
-) -> dict[str, str] | None:
-    try:
-        file_data = await uploaded_file.read()
-        file_name = uploaded_file.filename
-
-        MAX_FILE_SIZE = 20 * 1024 * 1024  # 20MB
-
-        if len(file_data) > MAX_FILE_SIZE:
-            raise HTTPException(
-                status_code=413,
-                detail="Размер файла превышает максимально допустимый (10MB)",
-            )
-
-        task = (
-            db.query(ToDo)
-            .filter(ToDo.id == todo_id, ToDo.user_id == current_user.id)
-            .first()
-        )
-        if not task:
-            raise HTTPException(status_code=404, detail="Задача не найдена")
-        task.file_data = file_data
-        task.file_name = file_name
-        db.commit()
-        return {"message": "Файл успешно загружен"}
-
-    except Exception as e:
-        db.rollback()
-        check_handle_exception(e, "Ошибка сервера при загрузке файла")
+        handle_server_exception(e, "Ошибка сервера при создании задачи")
 
 
 @router.get("/")
@@ -108,7 +69,7 @@ def get_tasks(
                     "id": task.id,
                     "task_name": task.name,
                     "completion_status": task.completion_status,
-                    "date_time": task.date_time.isoformat(),  # ISO формат для фронтенда
+                    "date_time": task.date_time.isoformat(),
                     "text": task.text,
                     "file_name": task.file_name,
                 }
@@ -119,38 +80,7 @@ def get_tasks(
         }
 
     except Exception as e:
-        check_handle_exception(e, "Ошибка сервера при выводе задач")
-
-
-@router.get("/{id}/file")
-def get_task_file(
-        id: int = Path(ge=1),
-        current_user: User = Depends(get_current_active_user),
-        db: Session = Depends(get_db)) -> StreamingResponse:
-    try:
-        task = (
-            db.query(ToDo).filter(
-                ToDo.id == id,
-                ToDo.user_id == current_user.id
-            ).first()
-        )
-
-        if not task or not task.file_data:
-            raise HTTPException(status_code=404, detail="Файл не найден")
-
-        mime_type, _ = mimetypes.guess_type(task.file_name or "")
-        mime_type = mime_type or "application/octet-stream"
-
-        return StreamingResponse(
-            BytesIO(task.file_data),
-            media_type=mime_type,
-            headers={
-                "Content-Disposition": f"inline; filename={task.file_name or 'file'}"
-            },
-        )
-
-    except Exception as e:
-        check_handle_exception(e, "Ошибка сервера при получении файла")
+        handle_server_exception(e, "Ошибка сервера при выводе задач")
 
 
 @router.get("/{id}")
@@ -179,7 +109,7 @@ def get_task(
         }
 
     except Exception as e:
-        check_handle_exception(e, "Ошибка сервера при получении задачи")
+        handle_server_exception(e, "Ошибка сервера при получении задачи")
 
 
 @router.put("/{id}")
@@ -224,7 +154,7 @@ def update_task_by_id(
         raise
     except Exception as e:
         db.rollback()
-        check_handle_exception(e, "Ошибка сервера при изменении задачи по id")
+        handle_server_exception(e, "Ошибка сервера при изменении задачи по id")
 
 
 @router.put("/by_name/{search_name}")
@@ -269,7 +199,7 @@ def update_task_by_name(
         raise
     except Exception as e:
         db.rollback()
-        check_handle_exception(
+        handle_server_exception(
             e, "Ошибка сервера при изменении задачи по имени")
 
 
@@ -293,8 +223,8 @@ def delete_task(
 
         db.delete(task)
         db.commit()
-        return 
-    
+        return
+
     except Exception as e:
         db.rollback()
-        check_handle_exception(e, "Ошибка сервера при удалении задачи")
+        handle_server_exception(e, "Ошибка сервера при удалении задачи")
