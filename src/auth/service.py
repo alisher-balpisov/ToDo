@@ -5,8 +5,8 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
-from src.config import TODO_JWT_ALG, TODO_JWT_EXP, TODO_JWT_SECRET
-from src.db.database import DbSession
+from src.core.config import TODO_JWT_ALG, TODO_JWT_EXP, TODO_JWT_SECRET
+from src.core.database import DbSession
 
 from .models import ToDoUser, TokenDataSchema, UserRegisterSchema
 
@@ -32,12 +32,12 @@ def create(*, session, user_in: UserRegisterSchema) -> ToDoUser:
     return user
 
 
-def get_by_username(*, session, username: str) -> ToDoUser | None:
+def get_user_by_username(session, username: str) -> ToDoUser | None:
     """Возвращает объект User, основанный на username пользователя."""
     return session.query(ToDoUser).filter(ToDoUser.username == username).one_or_none()
 
 
-def get_by_email(*, session, email: str) -> ToDoUser | None:
+def get_user_by_email(session, email: str) -> ToDoUser | None:
     """Возвращает объект User, основанный на email пользователя."""
     return session.query(ToDoUser).filter(ToDoUser.email == email).one_or_none()
 
@@ -73,7 +73,8 @@ async def get_current_user(
     except JWTError:
         raise credentials_exception()
 
-    user = get_by_username(session=session, username=token_data.username)
+    user = get_user_by_username(
+        session=session, username=token_data.username)
     if user is None:
         raise credentials_exception()
     return user

@@ -4,9 +4,9 @@ from fastapi import APIRouter
 from sqlalchemy import or_
 
 from src.auth.service import CurrentUser
-from src.db.database import DbSession
-from src.db.models import ToDo
-from src.handle_exception import handle_server_exception
+from src.core.database import DbSession
+from src.core.exceptions import handle_server_exception
+from src.db.models import Task
 
 router = APIRouter()
 
@@ -21,12 +21,12 @@ def search_tasks(
     try:
         search_pattern = f"%{search_query}%"
         tasks = (
-            session.query(ToDo).filter(
+            session.query(Task).filter(
                 or_(
-                    ToDo.name.ilike(search_pattern),
-                    ToDo.text.ilike(search_pattern)
+                    Task.name.ilike(search_pattern),
+                    Task.text.ilike(search_pattern)
                 ),
-                ToDo.user_id == current_user.id,
+                Task.user_id == current_user.id,
             ).all()
         )
         return [
@@ -51,11 +51,11 @@ def get_tasks_stats(
 
 ) -> dict[str, Any]:
     try:
-        query = session.query(ToDo).filter(ToDo.user_id == current_user.id)
+        query = session.query(Task).filter(Task.user_id == current_user.id)
 
         total = query.count()
-        completed = query.filter(ToDo.completion_status).count()
-        uncompleted = query.filter(ToDo.completion_status is None).count()
+        completed = query.filter(Task.completion_status).count()
+        uncompleted = query.filter(Task.completion_status is None).count()
         completion_percentage = round(
             (completed / total) * 100 if total > 0 else 0, 2)
         return {

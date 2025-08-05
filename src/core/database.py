@@ -1,13 +1,13 @@
 import re
 from typing import Annotated, Generator, List
 
-from fastapi import Depends
-from pydantic import Field
+from fastapi import Depends, Path
+from pydantic import AfterValidator, Field
 from sqlalchemy import create_engine
 from sqlalchemy.orm import (DeclarativeBase, Session, declared_attr,
                             sessionmaker)
 
-from src.config import SQLALCHEMY_DATABASE_URL
+from src.core.config import SQLALCHEMY_DATABASE_URL
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -23,7 +23,8 @@ def get_db() -> Generator[Session, None, None]:
 
 PrimaryKey = Annotated[int, Field(gt=0, lt=2147483647)]
 DbSession = Annotated[Session, Depends(get_db)]
-
+UsernameStr = Annotated[str, AfterValidator(
+    lambda x: str.strip(x)), Field(min_length=3, max_length=20)]
 
 
 def resolve_table_name(name):

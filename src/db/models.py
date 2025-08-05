@@ -5,10 +5,10 @@ from sqlalchemy import (Boolean, Column, DateTime, Enum, ForeignKey, Integer,
                         LargeBinary, String, Text)
 
 from src.auth.models import ToDoUser
-from src.db.database import Base
+from src.core.database import Base
 
 
-class ToDo(Base):
+class Task(Base):
 
     __repr_attrs__ = ['date_time']
 
@@ -34,9 +34,9 @@ class TaskShare(Base):
     __repr_attrs__ = ['task_id', 'date_time']
 
     id = Column(Integer, primary_key=True)
-    task_id = Column(Integer, ForeignKey(ToDo.id), index=True)
+    task_id = Column(Integer, ForeignKey(Task.id), index=True)
     owner_id = Column(Integer, ForeignKey(ToDoUser.id), index=True)
-    shared_with_id = Column(Integer, ForeignKey(ToDoUser.id), index=True)
+    target_user_id = Column(Integer, ForeignKey(ToDoUser.id), index=True)
     permission_level = Column(Enum(SharedAccessEnum),
                               default=SharedAccessEnum.VIEW)
     date_time = Column(DateTime, default=datetime.now(

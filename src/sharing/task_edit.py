@@ -5,10 +5,10 @@ from sqlalchemy.orm import Session
 
 from src.auth.models import ToDoUser
 from src.auth.service import CurrentUser
-from src.db.database import DbSession, PrimaryKey
+from src.core.database import DbSession, PrimaryKey
 from src.db.schemas import ToDoSchema
-from src.handle_exception import handle_server_exception
-from src.routers.helpers.sharing_helpers import check_edit_permission
+from src.core.exceptions import handle_server_exception
+from src.routers.helpers.shared_tasks_helpers import check_edit_permission
 
 router = APIRouter()
 

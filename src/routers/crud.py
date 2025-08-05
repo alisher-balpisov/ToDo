@@ -4,10 +4,10 @@ from typing import Annotated, Any
 from fastapi import APIRouter, HTTPException, Path, Query, status
 
 from src.auth.service import CurrentUser
-from src.db.database import DbSession, PrimaryKey
-from src.db.models import ToDo
-from src.db.schemas import ToDoSchema, SortTasksValidator
-from src.handle_exception import handle_server_exception
+from src.core.database import DbSession, PrimaryKey
+from src.core.exceptions import handle_server_exception
+from src.db.models import Task
+from src.db.schemas import SortTasksValidator, ToDoSchema
 from src.routers.helpers.crud_helpers import todo_sort_mapping
 
 router = APIRouter()
@@ -21,7 +21,7 @@ def create_task(
 
 ) -> dict[str, str] | None:
     try:
-        new_task = ToDo(
+        new_task = Task(
             name=task.name,
             text=task.text,
             completion_status=False,
@@ -51,8 +51,8 @@ def get_tasks(
 
 ) -> list[dict[str, Any]]:
     try:
-        tasks_query = session.query(ToDo).filter(
-            ToDo.user_id == current_user.id)
+        tasks_query = session.query(Task).filter(
+            Task.user_id == current_user.id)
 
         order_by = []
 
@@ -93,9 +93,9 @@ def get_task(
 ) -> dict[str, Any]:
     try:
         task = (
-            session.query(ToDo).filter(
-                ToDo.id == id,
-                ToDo.user_id == current_user.id
+            session.query(Task).filter(
+                Task.id == id,
+                Task.user_id == current_user.id
             ).first()
         )
 
@@ -123,9 +123,9 @@ def update_task_by_id(
 
 ) -> dict[str, Any]:
     try:
-        task = session.query(ToDo).filter(
-            ToDo.id == id,
-            ToDo.user_id == current_user.id
+        task = session.query(Task).filter(
+            Task.id == id,
+            Task.user_id == current_user.id
         ).first()
 
         if not task:
@@ -169,9 +169,9 @@ def update_task_by_name(
 
 ) -> dict[str, Any]:
     try:
-        task = session.query(ToDo).filter(
-            ToDo.name == search_name,
-            ToDo.user_id == current_user.id
+        task = session.query(Task).filter(
+            Task.name == search_name,
+            Task.user_id == current_user.id
         ).first()
 
         if not task:
@@ -215,9 +215,9 @@ def delete_task(
 
 ) -> None:
     try:
-        task = session.query(ToDo).filter(
-            ToDo.id == id,
-            ToDo.user_id == current_user.id
+        task = session.query(Task).filter(
+            Task.id == id,
+            Task.user_id == current_user.id
         ).first()
 
         if not task:

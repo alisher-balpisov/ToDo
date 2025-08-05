@@ -5,11 +5,12 @@ from typing import Annotated
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy import or_
+
 from src.auth.service import CurrentUser
-from src.db.database import DbSession, PrimaryKey
-from src.db.models import TaskShare, ToDo
-from src.handle_exception import handle_server_exception
-from src.routers.helpers.sharing_helpers import check_edit_permission
+from src.core.database import DbSession, PrimaryKey
+from src.core.exceptions import handle_server_exception
+from src.db.models import Task, TaskShare
+from src.routers.helpers.shared_tasks_helpers import check_edit_permission
 
 router = APIRouter()
 
@@ -54,13 +55,13 @@ def get_shared_task_file(
 ) -> StreamingResponse:
     try:
         task = (
-            session.query(ToDo)
-            .join(TaskShare, TaskShare.task_id == ToDo.id)
+            session.query(Task)
+            .join(TaskShare, TaskShare.task_id == Task.id)
             .filter(
-                ToDo.id == task_id,
+                Task.id == task_id,
                 or_(
-                    ToDo.user_id == current_user.id,
-                    TaskShare.shared_with_id == current_user.id,
+                    Task.user_id == current_user.id,
+                    TaskShare.target_user_id == current_user.id,
                 ),
             )
             .first()

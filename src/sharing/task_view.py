@@ -5,15 +5,15 @@ from sqlalchemy.orm import Session
 
 from src.auth.models import ToDoUser
 from src.auth.service import CurrentUser
-from src.db.database import DbSession, PrimaryKey
-from src.db.models import SharedAccessEnum, TaskShare, ToDo
+from src.core.database import DbSession, PrimaryKey
+from src.core.exceptions import handle_server_exception
+from src.db.models import SharedAccessEnum, Task, TaskShare
 from src.db.schemas import SortSharedTasksValidator
-from src.handle_exception import handle_server_exception
-from src.routers.helpers.sharing_helpers import (SortRule,
-                                                 check_task_access_level,
-                                                 check_view_permission,
-                                                 get_task_collaborators,
-                                                 todo_sort_mapping)
+from src.routers.helpers.shared_tasks_helpers import (SortRule,
+                                                      check_task_access_level,
+                                                      check_view_permission,
+                                                      get_task_collaborators,
+                                                      todo_sort_mapping)
 
 router = APIRouter()
 
@@ -30,13 +30,13 @@ def get_shared_tasks(
     try:
         query = (
             session.query(
-                ToDo,
+                Task,
                 ToDoUser.username.label("owner_username"),
                 TaskShare.permission_level
             )
-            .join(TaskShare, TaskShare.task_id == ToDo.id)
-            .join(ToDoUser, ToDoUser.id == ToDo.user_id)
-            .filter(TaskShare.shared_with_id == current_user.id)
+            .join(TaskShare, TaskShare.task_id == Task.id)
+            .join(ToDoUser, ToDoUser.id == Task.user_id)
+            .filter(TaskShare.target_user_id == current_user.id)
         )
         order_by = []
         for rule in sort.sort_shared_tasks:
@@ -75,15 +75,15 @@ def get_shared_task(
 
         task_info = (
             session.query(
-                ToDo,
+                Task,
                 ToDoUser.username.label("owner_username"),
                 TaskShare.permission_level
             )
-            .join(TaskShare, TaskShare.task_id == ToDo.id)
-            .join(ToDoUser, ToDoUser.id == ToDo.user_id)
+            .join(TaskShare, TaskShare.task_id == Task.id)
+            .join(ToDoUser, ToDoUser.id == Task.user_id)
             .filter(
-                ToDo.id == task_id,
-                TaskShare.shared_with_id == current_user.id
+                Task.id == task_id,
+                TaskShare.target_user_id == current_user.id
             ).first()
         )
 

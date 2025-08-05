@@ -5,67 +5,22 @@ from sqlalchemy.orm import Session
 
 from src.auth.models import ToDoUser
 from src.auth.service import CurrentUser
-from src.db.database import DbSession, get_db
-from src.db.models import SharedAccessEnum, TaskShare, ToDo
-
-
-def check_owned_task(
-        task_id: int,
-        session: DbSession
-) -> None:
-
-    task = (
-        session.query(ToDo)
-        .filter(ToDo.id == task_id, ToDo.user_id == current_user.id)
-        .first()
-    )
-    if not task:
-        raise HTTPException(
-            status_code=404, detail="Задача не найдена или вам не принадлежит"
-        )
-
-
-def get_existing_user(username: str, session: DbSession) -> ToDoUser:
-    shared_with_user = session.query(ToDoUser).filter(
-        ToDoUser.username == username).first()
-    if not shared_with_user:
-        raise HTTPException(status_code=404, detail="Пользователь не найден")
-    return shared_with_user
-
-
-def get_shared_access(
-        session: DbSession,
-        current_user: CurrentUser,
-        task_id: int,
-        shared_with_user: ToDoUser
-) -> TaskShare:
-
-    share = (
-        session.query(TaskShare)
-        .filter(
-            TaskShare.task_id == task_id,
-            TaskShare.owner_id == current_user.id,
-            TaskShare.shared_with_id == shared_with_user.id,
-        )
-        .first()
-    )
-    if not share:
-        raise HTTPException(status_code=404, detail="Доступ не найден")
-    return share
+from src.core.database import DbSession, get_db
+from src.db.models import SharedAccessEnum, Task, TaskShare
 
 
 def check_view_permission(
         session: DbSession,
         current_user: CurrentUser,
         task_id: int,
-) -> ToDo:
+) -> Task:
 
     task = (
-        session.query(ToDo)
-        .join(TaskShare, TaskShare.task_id == ToDo.id)
+        session.query(Task)
+        .join(TaskShare, TaskShare.task_id == Task.id)
         .filter(
-            ToDo.id == task_id,
-            TaskShare.shared_with_id == current_user.id,
+            Task.id == task_id,
+            TaskShare.target_user_id == current_user.id,
             TaskShare.permission_level.in_(
                 [SharedAccessEnum.VIEW, SharedAccessEnum.EDIT]
             ),
@@ -82,14 +37,14 @@ def check_edit_permission(
         session: DbSession,
         current_user: CurrentUser,
         task_id: int,
-) -> ToDo:
+) -> Task:
 
     task = (
-        session.query(ToDo)
-        .join(TaskShare, TaskShare.task_id == ToDo.id)
+        session.query(Task)
+        .join(TaskShare, TaskShare.task_id == Task.id)
         .filter(
-            ToDo.id == task_id,
-            TaskShare.shared_with_id == current_user.id,
+            Task.id == task_id,
+            TaskShare.target_user_id == current_user.id,
             TaskShare.permission_level == SharedAccessEnum.EDIT,
         )
         .first()
@@ -112,11 +67,11 @@ SortRule = Literal[
 ]
 
 todo_sort_mapping = {
-    "date_desc": ToDo.date_time.desc(),
-    "date_asc": ToDo.date_time.asc(),
-    "name": ToDo.name.asc(),
-    "status_false_first": ToDo.completion_status.asc(),
-    "status_true_first": ToDo.completion_status.desc(),
+    "date_desc": Task.date_time.desc(),
+    "date_asc": Task.date_time.asc(),
+    "name": Task.name.asc(),
+    "status_false_first": Task.completion_status.asc(),
+    "status_true_first": Task.completion_status.desc(),
     "permission_view_first": TaskShare.permission_level.asc(),
     "permission_edit_first": TaskShare.permission_level.desc(),
 }
@@ -126,11 +81,11 @@ def check_task_access_level(
         session: DbSession,
         current_user: CurrentUser,
         task_id: int,
-) -> tuple[ToDo, SharedAccessEnum]:
+) -> tuple[Task, SharedAccessEnum]:
 
     owned_task = (
-        session.query(ToDo)
-        .filter(ToDo.id == task_id, ToDo.user_id == current_user.id)
+        session.query(Task)
+        .filter(Task.id == task_id, Task.user_id == current_user.id)
         .first()
     )
 
@@ -138,9 +93,9 @@ def check_task_access_level(
         return owned_task, SharedAccessEnum.EDIT
 
     shared_task = (
-        session.query(ToDo, TaskShare.permission_level)
-        .join(TaskShare, TaskShare.task_id == ToDo.id)
-        .filter(ToDo.id == task_id, TaskShare.shared_with_id == current_user.id)
+        session.query(Task, TaskShare.permission_level)
+        .join(TaskShare, TaskShare.task_id == Task.id)
+        .filter(Task.id == task_id, TaskShare.target_user_id == current_user.id)
         .first()
     )
 
@@ -176,7 +131,7 @@ def get_task_collaborators(
 
     shares = (
         session.query(TaskShare, ToDoUser)
-        .join(ToDoUser, ToDoUser.id == TaskShare.shared_with_id)
+        .join(ToDoUser, ToDoUser.id == TaskShare.target_user_id)
         .filter(TaskShare.task_id == task_id)
         .all()
     )

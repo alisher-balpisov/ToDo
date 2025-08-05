@@ -4,10 +4,10 @@ from fastapi.security import OAuth2PasswordRequestForm
 from src.auth.models import (ToDoUser, TokenSchema, UserLoginSchema,
                              UserPasswordUpdateSchema, UserRegisterSchema,
                              get_hash_password)
-from src.db.database import DbSession, PrimaryKey
-from src.handle_exception import handle_server_exception
+from src.core.database import DbSession, PrimaryKey
+from src.core.exceptions import handle_server_exception
 
-from .service import CurrentUser, create, get, get_by_username, get_token
+from .service import CurrentUser, create, get, get_token, get_user_by_username
 
 auth_router = APIRouter()
 
@@ -18,7 +18,7 @@ def register_user(
         user_in: UserRegisterSchema,
 ):
 
-    user = get_by_username(session=session, username=user_in.username)
+    user = get_user_by_username(session=session, username=user_in.username)
     if user:
         # Pydantic v2 compatible error handling
         raise HTTPException(
@@ -40,7 +40,7 @@ async def login_user(
         session: DbSession,
         user_in: UserLoginSchema
 ) -> TokenSchema:
-    user = get_by_username(session=session, username=user_in.username)
+    user = get_user_by_username(session=session, username=user_in.username)
     if user and user.verify_password(user_in.password):
         return TokenSchema(access_token=user.token, token_type="bearer")
 

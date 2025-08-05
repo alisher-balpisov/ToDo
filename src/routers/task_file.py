@@ -6,9 +6,9 @@ from fastapi import APIRouter, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
 from src.auth.service import CurrentUser
-from src.db.database import DbSession, PrimaryKey
-from src.db.models import ToDo
-from src.handle_exception import handle_server_exception
+from src.core.database import DbSession, PrimaryKey
+from src.core.exceptions import handle_server_exception
+from src.db.models import Task
 
 router = APIRouter()
 
@@ -34,9 +34,9 @@ async def upload_file(
             )
 
         task = (
-            session.query(ToDo).filter(
-                ToDo.id == task_id,
-                ToDo.user_id == current_user.id
+            session.query(Task).filter(
+                Task.id == task_id,
+                Task.user_id == current_user.id
             ).first()
         )
         if not task:
@@ -60,9 +60,9 @@ def get_task_file(
 ) -> StreamingResponse:
     try:
         task = (
-            session.query(ToDo).filter(
-                ToDo.id == task_id,
-                ToDo.user_id == current_user.id
+            session.query(Task).filter(
+                Task.id == task_id,
+                Task.user_id == current_user.id
             ).first()
         )
 

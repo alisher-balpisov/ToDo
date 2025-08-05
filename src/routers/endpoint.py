@@ -5,9 +5,16 @@ from .extra import router as extra_router
 from .shared_tasks.endpoints import router as shared_tasks_router
 from .task_file import router as task_file_router
 
-router = APIRouter()
+api_router = APIRouter()
 
-router.include_router(crud_router, prefix="/tasks", tags=["Tasks"])
-router.include_router(task_file_router, prefix="/tasks", tags=["Task Files"])
-router.include_router(extra_router, prefix="/tasks", tags=["Extra"])
-router.include_router(shared_tasks_router, tags=["Shared Tasks"])
+api_router.include_router(
+    crud_router, prefix="/tasks", tags=["Tasks"])
+
+api_router.include_router(
+    task_file_router, prefix="/tasks", tags=["Task Files"])
+
+api_router.include_router(
+    extra_router, prefix="/tasks", tags=["Extra"])
+
+api_router.include_router(
+    shared_tasks_router, tags=["Shared Tasks"])

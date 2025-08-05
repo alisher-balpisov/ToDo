@@ -7,8 +7,8 @@ from jose import jwt
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy import Boolean, Column, Integer, LargeBinary, String
 
-from src.config import TODO_JWT_ALG, TODO_JWT_EXP, TODO_JWT_SECRET
-from src.db.database import Base
+from src.core.config import TODO_JWT_ALG, TODO_JWT_EXP, TODO_JWT_SECRET
+from src.core.database import Base, UsernameStr
 
 
 def generate_password():
@@ -72,11 +72,11 @@ class TokenSchema(BaseModel):
 
 
 class TokenDataSchema(BaseModel):
-    username: str | None = None
+    username: UsernameStr | None = None
 
 
 class UserBaseSchema(BaseModel):
-    username: str
+    username: UsernameStr
     email: EmailStr
 
     @field_validator("username")

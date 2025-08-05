@@ -4,7 +4,8 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.db.models import SharedAccessEnum
 from src.routers.helpers.crud_helpers import SortRule as SortTasksRule
-from src.routers.helpers.sharing_helpers import SortRule as SortSharedTasksRule
+from src.routers.helpers.shared_tasks_helpers import \
+    SortRule as SortSharedTasksRule
 
 
 class ToDoSchema(BaseModel):
@@ -14,8 +15,7 @@ class ToDoSchema(BaseModel):
 
 
 class TaskShareSchema(BaseModel):
-    task_id: int
-    shared_with_username: str
+    target_username: str
     permission_level: SharedAccessEnum = Field(default=SharedAccessEnum.VIEW)
 
 

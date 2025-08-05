@@ -5,8 +5,9 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.db.database import create_tables
-from src.routers.endpoint import router as api_router
+from src.auth.views import auth_router
+from src.core.database import create_tables
+from src.routers.endpoint import api_router
 
 
 @asynccontextmanager
@@ -27,4 +28,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(api_router)
