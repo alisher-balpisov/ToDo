@@ -19,6 +19,7 @@ def register_user(
 ):
 
     user = get_user_by_username(session=session, username=user_in.username)
+    print(user)
     if user:
         # Pydantic v2 compatible error handling
         raise HTTPException(
@@ -32,7 +33,7 @@ def register_user(
             ],
         )
     user = create(session=session, user_in=user_in)
-    return user
+    return user, f"Регистрация пройдена успешно"
 
 
 @auth_router.post("/login")

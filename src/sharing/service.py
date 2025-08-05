@@ -8,7 +8,6 @@ from src.core.database import DbSession, PrimaryKey, UsernameStr
 from src.core.exceptions import handle_server_exception
 from src.db.models import SharedAccessEnum, Task, TaskShare
 from src.db.schemas import TaskShareSchema
-from src.routers.helpers.shared_tasks_helpers import get_shared_access
 
 
 def get_task(session, task_id: int):

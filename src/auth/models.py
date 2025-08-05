@@ -77,12 +77,11 @@ class TokenDataSchema(BaseModel):
 
 class UserBaseSchema(BaseModel):
     username: UsernameStr
-    email: EmailStr
 
     @field_validator("username")
     @classmethod
     def username_required(cls, v):
-        """Убедитесь, что поле электронной почты не пусто."""
+        """Убедитесь, что поле не пусто."""
         if not v:
             raise ValueError("Строка username не должна быть пустой'")
         return v
