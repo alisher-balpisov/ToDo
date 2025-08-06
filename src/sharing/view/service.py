@@ -14,7 +14,7 @@ from src.routers.helpers.shared_tasks_helpers import (SortSharedTasksRule,
                                                       check_view_permission,
                                                       get_task_collaborators,
                                                       todo_sort_mapping)
-# from src.sharing.service import 
+from src.sharing.service import get_permission_level, get_shared_task_for_user
 
 
 def get_shared_tasks_service(
@@ -80,7 +80,7 @@ def get_shared_task_service(
     return result
 
 
-def check_task_access_level(session, current_user_id: int, task_id: int) -> tuple[Task, SharedAccessEnum]:
+def check_task_permission_level(session, current_user_id: int, task_id: int) -> tuple[Task, SharedAccessEnum]:
     owned_task = get_user_task(session, current_user_id, task_id)
     if owned_task:
         return owned_task, SharedAccessEnum.edit
@@ -109,8 +109,8 @@ def get_task_collaborators_service(
         current_user_id: int,
         task_id: int,
 ) -> list[dict]:
-
-    task, access_level = check_task_access_level(
+    permission_level = get
+    task, permission_level = check_task_permission_level(
         session, task_id, current_user_id)
     owner = get_user_by_id(session, current_user_id)
     collaborators = []
@@ -147,3 +147,23 @@ def get_task_collaborators_service(
             }
         )
     return collaborators
+
+
+def get_my_task_permissions_service(
+        session,
+        current_user_id: int,
+        task_id: int
+):
+    task, permission_level = check_task_permission_level(
+        session, current_user_id, task_id)
+
+    permissions = {
+        "can_view": True,
+        "can_edit": permission_level == SharedAccessEnum.edit,
+        "can_delete": task.user_id == current_user_id,
+        "can_share": task.user_id == current_user_id,
+        "can_upload_files": permission_level == SharedAccessEnum.edit,
+        "can_change_status": permission_level == SharedAccessEnum.edit,
+        "is_owner": task.user_id == current_user_id,
+    }
+    return task, permission_level, permissions

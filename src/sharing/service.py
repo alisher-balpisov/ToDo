@@ -40,7 +40,7 @@ def is_sharing_with_self(owner_id: int, target_user_id: int) -> bool:
     return owner_id == target_user_id
 
 
-def get_shared_access(
+def get_share_record(
         session,
         owner_id: int,
         task_id: int,
@@ -54,16 +54,16 @@ def get_shared_access(
 
 
 def get_permission_level(session: DbSession, current_user_id: int, task_id: int) -> SharedAccessEnum | None:
-    share = session.query(TaskShare.permission_level).filter(
+    permission_level = session.query(TaskShare.permission_level).filter(
         TaskShare.task_id == task_id,
         TaskShare.target_user_id == current_user_id
     ).one_or_none()
-    if not share:
+    if not permission_level:
         return None
-    return share.permission_level
+    return permission_level
 
 
-def get_user_shared_task(session, current_user_id: int, task_id: int) -> Task:
+def get_shared_task_for_user(session, current_user_id: int, task_id: int) -> Task:
     return session.query(Task).join(
         TaskShare, TaskShare.task_id == Task.id).filter(
         Task.id == task_id,
@@ -91,12 +91,12 @@ def update_share_permission_service(
             detail=f"Пользователь '{target_username}' не найден"
         )
 
-    share = get_shared_access(
+    share_record = get_share_record(
         session, task_id, owner_id, target_user.id)
-    if not share:
+    if not share_record:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Эта задача не расшарена с пользователем {target_username}"
         )
-    share.permission_level = new_permission
+    share_record.permission_level = new_permission
     session.commit()

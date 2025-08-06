@@ -14,9 +14,11 @@ from src.routers.helpers.shared_tasks_helpers import (SortSharedTasksRule,
                                                       check_view_permission,
                                                       todo_sort_mapping)
 
-from .service import (get_shared_task_service, get_shared_tasks_service,
-                      get_task_collaborators_service, share_task_service,
-                      unshare_task_service, update_share_permission_service)
+from .service import (check_task_permission_level,
+                      get_my_task_permissions_service, get_shared_task_service,
+                      get_shared_tasks_service, get_task_collaborators_service,
+                      share_task_service, unshare_task_service,
+                      update_share_permission_service)
 
 router = APIRouter()
 
@@ -99,3 +101,24 @@ def get_task_collaborators(
     except Exception as e:
         handle_server_exception(
             e, "Ошибка сервера при получении списка соавторов")
+
+
+@router.get("/shared-tasks/{task_id}/permissions")
+def get_my_task_permissions(
+    session: DbSession,
+    current_user: CurrentUser,
+    task_id: PrimaryKey
+) -> dict[str, Any]:
+    try:
+        task, permission_level, permissions = get_my_task_permissions_service(session=session,
+                                                                              current_user_id=current_user.id,
+                                                                              task_id=task_id)
+        return {
+            "task_id": task_id,
+            "task_name": task.name,
+            "permission_level": permission_level.value if permission_level else "owner",
+            "permissions": permissions,
+        }
+
+    except Exception as e:
+        handle_server_exception(e, "Ошибка сервера при получении прав доступа")

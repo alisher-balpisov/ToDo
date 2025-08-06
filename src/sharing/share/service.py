@@ -14,8 +14,8 @@ from src.routers.helpers.shared_tasks_helpers import (SortSharedTasksRule,
                                                       check_view_permission,
                                                       get_task_collaborators,
                                                       todo_sort_mapping)
-from src.sharing.service import (get_shared_access, is_already_shared,
-                                 is_owned_task, is_sharing_with_self)
+from src.sharing.service import (get_share, is_already_shared, is_owned_task,
+                                 is_sharing_with_self)
 
 
 def share_task_service(
@@ -80,7 +80,7 @@ def unshare_task_service(
             detail=f"Пользователь '{target_username}' не найден"
         )
 
-    share = get_shared_access(
+    share = get_share(
         session, task_id, owner_id, target_user.id)
     if not share:
         raise HTTPException(
