@@ -88,7 +88,7 @@ def get_tasks(
 def get_task(
         session: DbSession,
         current_user: CurrentUser,
-        id: Annotated[int, PrimaryKey],
+        id: PrimaryKey,
 
 ) -> dict[str, Any]:
     try:
@@ -118,7 +118,7 @@ def get_task(
 def update_task_by_id(
         session: DbSession,
         current_user: CurrentUser,
-        id: Annotated[int, PrimaryKey],
+        id: PrimaryKey,
         task_update: ToDoSchema,
 
 ) -> dict[str, Any]:
@@ -211,7 +211,7 @@ def update_task_by_name(
 def delete_task(
         session: DbSession,
         current_user: CurrentUser,
-        id: Annotated[int, PrimaryKey],
+        id: PrimaryKey,
 
 ) -> None:
     try:

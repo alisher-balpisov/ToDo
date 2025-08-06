@@ -1,12 +1,14 @@
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter
 from sqlalchemy import or_
 
 from src.auth.service import CurrentUser
-from src.core.database import DbSession
+from src.core.database import DbSession, PrimaryKey
 from src.core.exceptions import handle_server_exception
 from src.db.models import Task
+
+from .helpers.crud_helpers import get_user_task
 
 router = APIRouter()
 
@@ -66,3 +68,30 @@ def get_tasks_stats(
         }
     except Exception as e:
         handle_server_exception(e, "Ошибка сервера при выводе статистики")
+
+
+@router.patch("/tasks/{task_id}")
+def toggle_task_completion_status(
+        session: DbSession,
+        current_user: CurrentUser,
+        task_id: PrimaryKey,
+
+) -> dict[str, Any]:
+    try:
+        task = get_user_task(
+            session=session,
+            owner_id=current_user.id,
+            task_id=task_id)
+
+        task.completion_status = not task.completion_status
+        session.commit()
+        return {
+            "message": f"Статус задачи изменен на {'выполнено' if task.completion_status else 'не выполнено'}",
+            "task_id": task.id,
+            "new_status": task.completion_status,
+        }
+
+    except Exception as e:
+        session.rollback()
+        handle_server_exception(
+            e, "Ошибка сервера при изменении статуса задачи")

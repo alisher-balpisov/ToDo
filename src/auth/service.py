@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
+import bcrypt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
@@ -8,28 +9,15 @@ from jose import JWTError, jwt
 from src.core.config import TODO_JWT_ALG, TODO_JWT_EXP, TODO_JWT_SECRET
 from src.core.database import DbSession
 
-from .models import ToDoUser, TokenDataSchema, UserRegisterSchema
+from .models import (ToDoUser, TokenDataSchema, UserRegisterSchema,
+                     get_hash_password)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 
-def get(session, user_id: int) -> ToDoUser | None:
+def get_user_by_id(session, user_id: int) -> ToDoUser | None:
     """Возвращает имя пользователя на основе заданного id."""
     return session.query(ToDoUser).filter(ToDoUser.id == user_id).one_or_none()
-
-
-def create(*, session, user_in: UserRegisterSchema) -> ToDoUser:
-    """Создает нового пользователя ToDoUser."""
-    # pydantic вводит строковый пароль, но нам нужны байты
-    password = bytes(user_in.password, "utf-8")
-
-    user = ToDoUser(
-        **user_in.model_dump(exclude={"password"}),
-        password=password,
-    )
-    session.add(user)
-    session.commit()
-    return user
 
 
 def get_user_by_username(session, username: str) -> ToDoUser | None:
@@ -42,14 +30,18 @@ def get_user_by_email(session, email: str) -> ToDoUser | None:
     return session.query(ToDoUser).filter(ToDoUser.email == email).one_or_none()
 
 
-def get_token(self) -> str:
-    now = datetime.now(timezone.utc).astimezone()
-    exp = now + timedelta(minutes=TODO_JWT_EXP)
-    data = {
-        'exp': exp,
-        'email': self.email
-    }
-    return jwt.encode(data, TODO_JWT_SECRET, algorithm=TODO_JWT_ALG)
+def create(*, session, user_in: UserRegisterSchema) -> ToDoUser:
+    """Создает нового пользователя ToDoUser."""
+    # pydantic вводит строковый пароль, но нам нужны байты
+    password = get_hash_password(user_in.password)
+
+    user = ToDoUser(
+        **user_in.model_dump(exclude={"password"}),
+        password=password,
+    )
+    session.add(user)
+    session.commit()
+    return user
 
 
 def credentials_exception():
@@ -66,17 +58,19 @@ async def get_current_user(
 ) -> ToDoUser:
     try:
         payload = jwt.decode(token, TODO_JWT_SECRET, algorithms=[TODO_JWT_ALG])
+        print(payload)
         username: str = payload.get("sub")
+        print(username)
         if username is None:
-            credentials_exception()
+            raise credentials_exception()
         token_data = TokenDataSchema(username=username)
     except JWTError:
-        credentials_exception()
+        raise credentials_exception()
 
     user = get_user_by_username(
         session=session, username=token_data.username)
     if user is None:
-        credentials_exception()
+        raise credentials_exception()
     return user
 
 CurrentUser = Annotated[ToDoUser, Depends(get_current_user)]

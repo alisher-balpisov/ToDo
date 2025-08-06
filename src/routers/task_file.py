@@ -2,11 +2,11 @@ import mimetypes
 from io import BytesIO
 from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from src.auth.service import CurrentUser
-from src.core.database import DbSession, PrimaryKey
+from src.core.database import DbSession, PrimaryKey, UploadedFile
 from src.core.exceptions import handle_server_exception
 from src.db.models import Task
 
@@ -17,8 +17,8 @@ router = APIRouter()
 async def upload_file(
         session: DbSession,
         current_user: CurrentUser,
-        uploaded_file: Annotated[UploadFile, File()],
-        task_id: Annotated[int, PrimaryKey],
+        uploaded_file: UploadedFile,
+        task_id: PrimaryKey,
 
 ) -> dict[str, str] | None:
     try:
@@ -55,7 +55,7 @@ async def upload_file(
 def get_task_file(
         session: DbSession,
         current_user: CurrentUser,
-        task_id: Annotated[int, PrimaryKey],
+        task_id: PrimaryKey,
 
 ) -> StreamingResponse:
     try:

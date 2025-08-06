@@ -1,22 +1,22 @@
 from typing import ClassVar, List, Tuple, Type
 
+from fastapi import Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.db.models import SharedAccessEnum
-from src.routers.helpers.crud_helpers import SortRule as SortTasksRule
-from src.routers.helpers.shared_tasks_helpers import \
-    SortRule as SortSharedTasksRule
+from src.routers.helpers.crud_helpers import SortTasksRule
+from src.routers.helpers.shared_tasks_helpers import SortSharedTasksRule
 
 
 class ToDoSchema(BaseModel):
     name: str | None = Field(default=None, max_length=30)
     text: str | None = Field(default=None, max_length=4096)
-    completion_status: bool | None = Field(default=None)
+    completion_status: bool = Field(default=False)
 
 
 class TaskShareSchema(BaseModel):
     target_username: str
-    permission_level: SharedAccessEnum = Field(default=SharedAccessEnum.VIEW)
+    permission_level: SharedAccessEnum = Field(default=SharedAccessEnum.view)
 
 
 def check_conflicting_rules(

@@ -25,8 +25,8 @@ class Task(Base):
 
 
 class SharedAccessEnum(enum.Enum):
-    VIEW = "view"
-    EDIT = "edit"
+    view = "view"
+    edit = "edit"
 
 
 class TaskShare(Base):
@@ -38,6 +38,6 @@ class TaskShare(Base):
     owner_id = Column(Integer, ForeignKey(ToDoUser.id), index=True)
     target_user_id = Column(Integer, ForeignKey(ToDoUser.id), index=True)
     permission_level = Column(Enum(SharedAccessEnum),
-                              default=SharedAccessEnum.VIEW)
+                              default=SharedAccessEnum.view)
     date_time = Column(DateTime, default=datetime.now(
         timezone.utc).astimezone())

@@ -1,13 +1,14 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from src.auth.models import (ToDoUser, TokenSchema, UserLoginSchema,
-                             UserPasswordUpdateSchema, UserRegisterSchema,
-                             get_hash_password)
+from src.auth.models import (ToDoUser, TokenSchema, UserPasswordUpdateSchema,
+                             UserRegisterSchema)
 from src.core.database import DbSession, PrimaryKey
 from src.core.exceptions import handle_server_exception
 
-from .service import CurrentUser, create, get, get_token, get_user_by_username
+from .service import CurrentUser, create, get_user_by_username
 
 auth_router = APIRouter()
 
@@ -21,7 +22,6 @@ def register_user(
     user = get_user_by_username(session=session, username=user_in.username)
     print(user)
     if user:
-        # Pydantic v2 compatible error handling
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=[
@@ -33,18 +33,20 @@ def register_user(
             ],
         )
     user = create(session=session, user_in=user_in)
-    return user, f"Регистрация пройдена успешно"
+    return {'msg': "Регистрация пройдена успешно",
+            'username': user_in.username,
+            'password': user_in.password}
 
 
 @auth_router.post("/login")
 async def login_user(
         session: DbSession,
-        user_in: UserLoginSchema
+        user_in: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> TokenSchema:
     user = get_user_by_username(session=session, username=user_in.username)
     if user and user.verify_password(user_in.password):
-        return TokenSchema(access_token=user.token, token_type="bearer")
-
+        return TokenSchema(access_token=user.get_token, token_type="bearer")
+    
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail=[
@@ -62,37 +64,28 @@ async def login_user(
     )
 
 
-@auth_router.post("/{user_id}/change-password")
+@auth_router.post("/change-password")
 def change_password(
         session: DbSession,
         current_user: CurrentUser,
-        user_id: PrimaryKey,
         password_update: UserPasswordUpdateSchema,
 ):
-    user = get(session=session, user_id=user_id)
-    if not user:
+    if not current_user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=[{"msg": "Пользователя с таким id не существует."}],
         )
 
-    # Разрешайте только пользователям изменять свой собственный пароль
-    if user.id != current_user.id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=[{"msg": "Не имеет права изменять пароли других пользователей"}],
-        )
-
     # Проверьте текущий пароль, если пользователь меняет свой собственный пароль
-    if user.id == current_user.id:
-        if not user.verify_password(password_update.current_password):
+    if current_user.id == current_user.id:
+        if not current_user.verify_password(password_update.current_password):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=[{"msg": "Неверный текущий пароль"}],
             )
 
     try:
-        user.set_password(password_update.new_password)
+        current_user.set_password(password_update.new_password)
         session.commit()
     except ValueError as e:
         session.rollback()
@@ -101,4 +94,4 @@ def change_password(
             detail=[{"msg": str(e)}],
         ) from e
 
-    return user
+    return password_update.new_password

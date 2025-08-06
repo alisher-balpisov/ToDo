@@ -11,7 +11,7 @@ from src.core.config import TODO_JWT_ALG, TODO_JWT_EXP, TODO_JWT_SECRET
 from src.core.database import Base, UsernameStr
 
 
-def generate_password():
+def generate_password() -> str:
     """
     Сгенерируйте случайный надежный пароль,
     состоящий как минимум из одной строчной буквы,
@@ -35,6 +35,18 @@ def get_hash_password(password: str):
     return bcrypt.hashpw(pw, salt)
 
 
+def validate_strong_password(v: str) -> str:
+    """Проверка сложности пароля."""
+    if not v or len(v) < 8:
+        raise ValueError("Длина пароля должна составлять не менее 8 символов")
+    if not any(c.isdigit() for c in v):
+        raise ValueError("Пароль должен содержать хотя бы одну цифру")
+    if not any(c.isupper() for c in v) or not any(c.islower() for c in v):
+        raise ValueError(
+            "Пароль должен содержать как заглавные, так и строчные буквы")
+    return v
+
+
 class ToDoUser(Base):
     __repr_attrs__ = ['username']
 
@@ -56,12 +68,12 @@ class ToDoUser(Base):
         self.password = get_hash_password(password)
 
     @property
-    def token(self) -> str:
+    def get_token(self) -> str:
         now = datetime.now(timezone.utc).astimezone()
         exp = now + timedelta(minutes=TODO_JWT_EXP)
         data = {
             'exp': exp,
-            'email': self.email
+            'sub': self.username
         }
         return jwt.encode(data, TODO_JWT_SECRET, algorithm=TODO_JWT_ALG)
 
@@ -75,8 +87,9 @@ class TokenDataSchema(BaseModel):
     username: UsernameStr | None = None
 
 
-class UserBaseSchema(BaseModel):
+class UserRegisterSchema(BaseModel):
     username: UsernameStr
+    password: str = ""
 
     @field_validator("username")
     @classmethod
@@ -86,27 +99,19 @@ class UserBaseSchema(BaseModel):
             raise ValueError("Строка username не должна быть пустой'")
         return v
 
-
-class UserLoginSchema(UserBaseSchema):
-    password: str
-
-    @field_validator("password")
-    @classmethod
-    def password_required(cls, v):
-        """Убедитесь, что поле для ввода пароля не пустое."""
-        if not v:
-            raise ValueError("Строка password не должна быть пустой")
-        return v
-
-
-class UserRegisterSchema(UserLoginSchema):
-    password: str = ""
-
     @field_validator("password", mode="before")
     @classmethod
     def password_required(cls, v):
-        password = v or generate_password()
-        return get_hash_password(password)
+        if not v:
+            password = generate_password()
+        else:
+            password = v
+        return password
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return validate_strong_password(v)
 
 
 class UserPasswordUpdateSchema(BaseModel):
@@ -115,19 +120,12 @@ class UserPasswordUpdateSchema(BaseModel):
 
     @field_validator("new_password")
     @classmethod
-    def validate_password(cls, v):
-        """Проверка сложности нового пароля."""
-        if not v or len(v) < 8:
-            raise ValueError(
-                "Длина пароля должна составлять не менее 8 символов")
-        if not any(c.isdigit() for c in v):
-            raise ValueError("Пароль должен содержать хотя бы одну цифру")
-        if not (any(c.isupper() for c in v) and any(c.islower() for c in v)):
-            raise ValueError(
-                "Пароль должен содержать как заглавные, так и строчные буквы")
-        return v
+    def validate_password(cls, v: str) -> str:
+        if not v:
+            raise ValueError("Вы не ввели новый пароль")
+        return validate_strong_password(v)
 
-    @field_validator("current_password")
+    @field_validator("current_password", mode="before")
     @classmethod
     def password_required(cls, v):
         if not v:

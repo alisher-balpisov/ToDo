@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 from src.auth.models import ToDoUser
 from src.auth.service import CurrentUser
 from src.core.database import DbSession, PrimaryKey
-from src.db.schemas import ToDoSchema
 from src.core.exceptions import handle_server_exception
+from src.db.schemas import ToDoSchema
 from src.routers.helpers.shared_tasks_helpers import check_edit_permission
 
 router = APIRouter()
@@ -17,7 +17,7 @@ router = APIRouter()
 def edit_shared_task(
         session: DbSession,
         current_user: CurrentUser,
-        task_id: Annotated[int, PrimaryKey],
+        task_id: PrimaryKey,
         task_update: ToDoSchema,
 
 ) -> dict[str, Any]:
@@ -58,7 +58,7 @@ def edit_shared_task(
 def toggle_shared_task_status(
         session: DbSession,
         current_user: CurrentUser,
-        task_id: Annotated[int, PrimaryKey],
+        task_id: PrimaryKey,
 
 ) -> dict[str, Any]:
     try:

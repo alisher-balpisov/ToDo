@@ -21,29 +21,42 @@ from .service import (get_shared_task_service, get_shared_tasks_service,
 router = APIRouter()
 
 
-
-
-
-@router.put("/tasks/{task_id}/shares/{username}")
-def update_share_permission(
+@router.post("/tasks/{task_id}/shares")
+def share_task(
         session: DbSession,
         current_user: CurrentUser,
-        new_permission: SharedAccessEnum,
         task_id: PrimaryKey,
-        target_username: UsernameStr,
-
-) -> dict[str, str]:
+        share_data: TaskShareSchema,
+):
     try:
-        update_share_permission_service(session=session,
-                                        owner_id=current_user.id,
-                                        new_permission=new_permission,
-                                        task_id=task_id,
-                                        target_username=target_username)
-        return {"msg": "Уровень доступа успешно обновлен"}
+        share_task_service(session=session,
+                           owner_id=current_user.id,
+                           task_id=task_id,
+                           target_username=share_data.target_username,
+                           permission_level=share_data.permission_level)
+        return {"msg": "Задача успешно расшарена с пользователем"}
+
     except Exception as e:
         session.rollback()
         handle_server_exception(
-            e, "Ошибка сервера при обновлении уровня доступа")
+            e, "Ошибка сервера при предоставлении доступа к задаче")
 
 
+@router.delete("/tasks/{task_id}/shares/{username}")
+def unshare_task(
+        session: DbSession,
+        current_user: CurrentUser,
+        task_id: PrimaryKey,
+        target_username: UsernameStr,
+) -> dict[str, str]:
+    try:
+        unshare_task_service(session=session,
+                             owner_id=current_user.id,
+                             task_id=task_id,
+                             target_username=target_username)
+        return {"msg": "Доступ к задаче успешно отозван"}
 
+    except Exception as e:
+        session.rollback()
+        handle_server_exception(
+            e, "Ошибка сервера при отзыве доступа к задаче")
