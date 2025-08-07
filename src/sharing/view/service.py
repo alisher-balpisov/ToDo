@@ -1,20 +1,16 @@
-from typing import Annotated, List
+from typing import List
 
-from fastapi import APIRouter, HTTPException, Path, status
+from fastapi import HTTPException, status
 
 from src.auth.models import ToDoUser
-from src.auth.service import CurrentUser, get_user_by_id, get_user_by_username
-from src.core.database import DbSession, PrimaryKey, UsernameStr
-from src.core.exceptions import handle_server_exception
+from src.auth.service import get_user_by_id
+from src.core.database import DbSession
 from src.db.models import SharedAccessEnum, Task, TaskShare
-from src.db.schemas import SortSharedTasksValidator, TaskShareSchema
-from src.routers.helpers.crud_helpers import get_user_task
-from src.routers.helpers.shared_tasks_helpers import (SortSharedTasksRule,
-                                                      check_task_access_level,
-                                                      check_view_permission,
-                                                      get_task_collaborators,
-                                                      todo_sort_mapping)
-from src.sharing.service import get_permission_level, get_shared_task_for_user
+from src.db.schemas import SortSharedTasksValidator
+from src.routers.helpers.shared_tasks_helpers import (
+    SortSharedTasksRule, shared_tasks_sort_mapping)
+from src.sharing.service import (get_permission_level, get_task, get_task_user,
+                                 get_user_shared_task, map_sort_rules)
 
 
 def get_shared_tasks_service(
@@ -27,7 +23,7 @@ def get_shared_tasks_service(
     sort = SortSharedTasksValidator(
         sort_shared_tasks=sort_shared_tasks).sort_shared_tasks
 
-    result = (
+    tasks_info = (
         session.query(
             Task,
             ToDoUser.username.label("owner_username"),
@@ -37,20 +33,17 @@ def get_shared_tasks_service(
         .join(ToDoUser, ToDoUser.id == Task.user_id)
         .filter(TaskShare.target_user_id == current_user_id)
     )
-    if not result:
+    if not tasks_info:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Список пуст"
         )
 
-    order_by = [todo_sort_mapping[rule]
-                for rule in sort
-                if rule in todo_sort_mapping]
-
+    order_by = map_sort_rules(sort, shared_tasks_sort_mapping)
     if order_by:
-        result = result.order_by(*order_by)
+        tasks_info = tasks_info.order_by(*order_by)
 
-    return result.offset(skip).limit(limit).all()
+    return tasks_info.offset(skip).limit(limit).all()
 
 
 def get_shared_task_service(
@@ -58,26 +51,15 @@ def get_shared_task_service(
         current_user_id: int,
         task_id: int
 ):
-    result = (
-        session.query(
-            Task,
-            ToDoUser.username.label("owner_username"),
-            TaskShare.permission_level
-        )
-        .join(TaskShare, TaskShare.task_id == Task.id)
-        .join(ToDoUser, ToDoUser.id == Task.user_id)
-        .filter(
-            Task.id == task_id,
-            TaskShare.target_user_id == current_user_id
-        ).one_or_none()
-    )
-
-    if not result:
+    task = get_user_shared_task(session, current_user_id, task_id)
+    if not task:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Задача не найдена"
         )
-    return result
+    owner = get_task_user(session, task_id)
+    permission_level = get_permission_level(session, current_user_id, task_id)
+    return task, owner, permission_level
 
 
 def check_task_permission_level(session, current_user_id: int, task_id: int) -> tuple[Task, SharedAccessEnum]:
@@ -85,15 +67,7 @@ def check_task_permission_level(session, current_user_id: int, task_id: int) -> 
     if owned_task:
         return owned_task, SharedAccessEnum.edit
 
-    shared_task = (
-        session.query(Task, TaskShare.permission_level)
-        .join(TaskShare, TaskShare.task_id == Task.id)
-        .filter(
-            Task.id == task_id,
-            TaskShare.target_user_id == current_user_id
-        ).first()
-    )
-
+    shared_task = get_user_shared_task(session, current_user_id, task_id)
     if not shared_task:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -109,18 +83,18 @@ def get_task_collaborators_service(
         current_user_id: int,
         task_id: int,
 ) -> list[dict]:
-    permission_level = get
-    task, permission_level = check_task_permission_level(
-        session, task_id, current_user_id)
-    owner = get_user_by_id(session, current_user_id)
     collaborators = []
 
+    owned_task = get_user_task(session, current_user_id, task_id)
+    if owned_task:
+        return owned_task, SharedAccessEnum.edit
+
+    owner = get_user_by_id(session, current_user_id)
     if owner:
         collaborators.append(
             {
                 "user_id": owner.id,
                 "username": owner.username,
-                "email": owner.email,
                 "role": "owner",
                 "permission_level": "full_access",
                 "can_revoke": False,
@@ -139,23 +113,28 @@ def get_task_collaborators_service(
             {
                 "user_id": ToDoUser.id,
                 "username": ToDoUser.username,
-                "email": ToDoUser.email,
                 "role": "collaborator",
                 "permission_level": share.permission_level.value,
                 "shared_date": share.date_time.isoformat(),
-                "can_revoke": task.user_id == current_user_id,
+                "can_revoke": share.owner_id == current_user_id,
             }
         )
     return collaborators
 
 
-def get_my_task_permissions_service(
+def get_task_permissions_service(
         session,
         current_user_id: int,
         task_id: int
 ):
-    task, permission_level = check_task_permission_level(
-        session, current_user_id, task_id)
+    task = get_task(session, task_id)
+    if not task:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Задача не найдена"
+        )
+
+    permission_level = get_permission_level(session, current_user_id, task_id)
 
     permissions = {
         "can_view": True,

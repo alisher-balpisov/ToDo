@@ -44,7 +44,7 @@ async def upload_file(
         task.file_data = file_data
         task.file_name = file_name
         session.commit()
-        return {"message": "Файл успешно загружен"}
+        return {"msg": "Файл успешно загружен"}
 
     except Exception as e:
         session.rollback()
@@ -66,7 +66,10 @@ def get_task_file(
             ).first()
         )
 
-        if not task or not task.file_data:
+        if not task:
+            raise HTTPException(status_code=404, detail="Задача не найдена")
+
+        if not task.file_data:
             raise HTTPException(status_code=404, detail="Файл не найден")
 
         mime_type, _ = mimetypes.guess_type(task.file_name or "")

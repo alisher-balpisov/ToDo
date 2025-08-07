@@ -1,18 +1,14 @@
-import mimetypes
 from io import BytesIO
-from typing import Annotated
 
-from fastapi import APIRouter, File, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
-from sqlalchemy import or_
 
 from src.auth.service import CurrentUser
 from src.core.database import DbSession, PrimaryKey, UploadedFile
 from src.core.exceptions import handle_server_exception
-from src.db.models import Task, TaskShare
-from src.routers.helpers.shared_tasks_helpers import check_edit_permission
 
-from .service import upload_file_to_shared_task_service
+from .service import (get_shared_task_file_service,
+                      upload_file_to_shared_task_service)
 
 router = APIRouter()
 
@@ -30,7 +26,7 @@ def upload_file_to_shared_task(
                                            current_user_id=current_user.id,
                                            uploaded_file=uploaded_file,
                                            task_id=task_id)
-        return {"message": "Файл успешно загружен к расшаренной задаче"}
+        return {"msg": "Файл успешно загружен к расшаренной задаче"}
 
     except Exception as e:
         session.rollback()
@@ -47,29 +43,15 @@ def get_shared_task_file(
 
 ) -> StreamingResponse:
     try:
-        task = (
-            session.query(Task)
-            .join(TaskShare, TaskShare.task_id == Task.id)
-            .filter(
-                Task.id == task_id,
-                or_(
-                    Task.user_id == current_user.id,
-                    TaskShare.target_user_id == current_user.id,
-                ),
-            )
-            .first()
-        )
-
-        if not task or not task.file_data:
-            raise HTTPException(status_code=404, detail="Файл не найден")
-        mime_type, _ = mimetypes.guess_type(task.file_name or "")
-        mime_type = mime_type or "application/octet-stream"
+        task, mime_type = get_shared_task_file_service(session=session,
+                                                       current_user_id=current_user.id,
+                                                       task_id=task_id)
         return StreamingResponse(
             BytesIO(task.file_data),
             media_type=mime_type,
             headers={
                 "Content-Disposition": f"inline; filename={task.file_name or 'file'}"
-            },
+            }
         )
     except Exception as e:
         handle_server_exception(e, "Ошибка сервера при получении файла")

@@ -1,21 +1,10 @@
-from typing import Annotated, List
+from fastapi import HTTPException, status
 
-from fastapi import APIRouter, HTTPException, Path, status
-
-from src.auth.models import ToDoUser
-from src.auth.service import CurrentUser, get_user_by_id, get_user_by_username
-from src.core.database import DbSession, PrimaryKey, UsernameStr
-from src.core.exceptions import handle_server_exception
-from src.db.models import SharedAccessEnum, Task, TaskShare
-from src.db.schemas import SortSharedTasksValidator, TaskShareSchema
-from src.routers.helpers.crud_helpers import get_user_task
-from src.routers.helpers.shared_tasks_helpers import (SortSharedTasksRule,
-                                                      check_task_access_level,
-                                                      check_view_permission,
-                                                      get_task_collaborators,
-                                                      todo_sort_mapping)
-from src.sharing.service import (get_share, is_already_shared, is_owned_task,
-                                 is_sharing_with_self)
+from src.auth.service import get_user_by_username
+from src.core.database import DbSession
+from src.db.models import SharedAccessEnum, TaskShare
+from src.sharing.service import (is_already_shared, is_sharing_with_self,
+                                 is_user_task)
 
 
 def share_task_service(
@@ -26,7 +15,7 @@ def share_task_service(
         permission_level: SharedAccessEnum
 ) -> None:
 
-    if not is_owned_task(session, owner_id, task_id):
+    if not is_user_task(session, owner_id, task_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Задача не найдена или не принадлежит вам"
@@ -67,7 +56,7 @@ def unshare_task_service(
         task_id: int,
         target_username: str
 ) -> None:
-    if not is_owned_task(session, owner_id, task_id):
+    if not is_user_task(session, owner_id, task_id):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Задача не найдена или не принадлежит вам"

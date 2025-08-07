@@ -9,8 +9,6 @@ from src.core.database import DbSession, get_db
 from src.db.models import SharedAccessEnum, Task, TaskShare
 
 
-
-
 def check_edit_permission(
         session: DbSession,
         current_user: CurrentUser,
@@ -44,7 +42,7 @@ SortSharedTasksRule = Literal[
     "permission_edit_first",
 ]
 
-todo_sort_mapping = {
+shared_tasks_sort_mapping = {
     "date_desc": Task.date_time.desc(),
     "date_asc": Task.date_time.asc(),
     "name": Task.name.asc(),
@@ -53,9 +51,3 @@ todo_sort_mapping = {
     "permission_view_first": TaskShare.permission_level.asc(),
     "permission_edit_first": TaskShare.permission_level.desc(),
 }
-
-
-
-
-
-

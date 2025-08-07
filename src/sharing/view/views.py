@@ -1,24 +1,15 @@
-from typing import Annotated, Any, List
+from typing import Any, List
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Query
 
-from src.auth.models import ToDoUser
 from src.auth.service import CurrentUser
-from src.core.database import DbSession, PrimaryKey, UsernameStr
+from src.core.database import DbSession, PrimaryKey
 from src.core.exceptions import handle_server_exception
-from src.db.models import SharedAccessEnum, Task, TaskShare
-from src.db.schemas import SortSharedTasksValidator, TaskShareSchema
-from src.routers.helpers.shared_tasks_helpers import (SortSharedTasksRule,
-                                                      check_task_access_level,
-                                                      check_view_permission,
-                                                      todo_sort_mapping)
+from src.routers.helpers.shared_tasks_helpers import SortSharedTasksRule
 
-from .service import (check_task_permission_level,
-                      get_my_task_permissions_service, get_shared_task_service,
-                      get_shared_tasks_service, get_task_collaborators_service,
-                      share_task_service, unshare_task_service,
-                      update_share_permission_service)
+from .service import (get_shared_task_service, get_shared_tasks_service,
+                      get_task_collaborators_service,
+                      get_task_permissions_service)
 
 router = APIRouter()
 
@@ -33,11 +24,11 @@ def get_shared_tasks(
 
 ) -> list[dict]:
     try:
-        result = get_shared_tasks_service(session=session,
-                                          current_user_id=current_user.id,
-                                          sort_shared_tasks=sort_shared_tasks,
-                                          skip=skip,
-                                          limit=limit)
+        tasks_info = get_shared_tasks_service(session=session,
+                                              current_user_id=current_user.id,
+                                              sort_shared_tasks=sort_shared_tasks,
+                                              skip=skip,
+                                              limit=limit)
         return [
             {
                 "id": task.id,
@@ -47,7 +38,7 @@ def get_shared_tasks(
                 "text": task.text,
                 "owner_username": owner_username,
                 "permission_level": permission_level,
-            } for task, owner_username, permission_level in result
+            } for task, owner_username, permission_level in tasks_info
         ]
 
     except Exception as e:
@@ -62,10 +53,9 @@ def get_shared_task(
         task_id: PrimaryKey
 ) -> dict[str, Any]:
     try:
-        result = get_shared_task_service(session=session,
-                                         current_user_id=current_user.id,
-                                         task_id=task_id)
-        task, owner_username, permission_level = result
+        task, owner, permission_level = get_shared_task_service(session=session,
+                                                                current_user_id=current_user.id,
+                                                                task_id=task_id)
         return {
             "id": task.id,
             "task_name": task.name,
@@ -73,7 +63,7 @@ def get_shared_task(
             "date_time": task.date_time.isoformat(),
             "text": task.text,
             "file_name": task.file_name,
-            "owner_username": owner_username,
+            "owner_username": owner.username,
             "permission_level": permission_level,
         }
 
@@ -104,15 +94,15 @@ def get_task_collaborators(
 
 
 @router.get("/shared-tasks/{task_id}/permissions")
-def get_my_task_permissions(
+def get_task_permissions(
     session: DbSession,
     current_user: CurrentUser,
     task_id: PrimaryKey
 ) -> dict[str, Any]:
     try:
-        task, permission_level, permissions = get_my_task_permissions_service(session=session,
-                                                                              current_user_id=current_user.id,
-                                                                              task_id=task_id)
+        task, permission_level, permissions = get_task_permissions_service(session=session,
+                                                                           current_user_id=current_user.id,
+                                                                           task_id=task_id)
         return {
             "task_id": task_id,
             "task_name": task.name,

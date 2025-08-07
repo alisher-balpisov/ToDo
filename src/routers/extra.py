@@ -86,7 +86,7 @@ def toggle_task_completion_status(
         task.completion_status = not task.completion_status
         session.commit()
         return {
-            "message": f"Статус задачи изменен на {'выполнено' if task.completion_status else 'не выполнено'}",
+            "msg": f"Статус задачи изменен на {'выполнено' if task.completion_status else 'не выполнено'}",
             "task_id": task.id,
             "new_status": task.completion_status,
         }

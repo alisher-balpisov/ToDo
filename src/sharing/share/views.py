@@ -1,22 +1,11 @@
-from typing import Annotated, Any, List
+from fastapi import APIRouter
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query
-from sqlalchemy.orm import Session
-
-from src.auth.models import ToDoUser
 from src.auth.service import CurrentUser
 from src.core.database import DbSession, PrimaryKey, UsernameStr
 from src.core.exceptions import handle_server_exception
-from src.db.models import SharedAccessEnum, Task, TaskShare
-from src.db.schemas import SortSharedTasksValidator, TaskShareSchema
-from src.routers.helpers.shared_tasks_helpers import (SortSharedTasksRule,
-                                                      check_task_access_level,
-                                                      check_view_permission,
-                                                      todo_sort_mapping)
+from src.db.schemas import TaskShareSchema
 
-from .service import (get_shared_task_service, get_shared_tasks_service,
-                      get_task_collaborators_service, share_task_service,
-                      unshare_task_service, update_share_permission_service)
+from .service import share_task_service, unshare_task_service
 
 router = APIRouter()
 

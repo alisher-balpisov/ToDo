@@ -7,8 +7,8 @@ from src.auth.service import CurrentUser
 from src.core.database import DbSession, PrimaryKey
 from src.core.exceptions import handle_server_exception
 from src.db.models import Task
-from src.db.schemas import SortTasksValidator, ToDoSchema
-from src.routers.helpers.crud_helpers import todo_sort_mapping
+from src.db.schemas import SortTasksValidator, TaskSchema
+from src.routers.helpers.crud_helpers import tasks_sort_mapping
 
 router = APIRouter()
 
@@ -17,7 +17,7 @@ router = APIRouter()
 def create_task(
         session: DbSession,
         current_user: CurrentUser,
-        task: ToDoSchema,
+        task: TaskSchema,
 
 ) -> dict[str, str] | None:
     try:
@@ -31,7 +31,7 @@ def create_task(
         session.add(new_task)
         session.commit()
         return {
-            "message": "Задача добавлена",
+            "msg": "Задача добавлена",
             "task_id": new_task.id,
             "task_name": new_task.name
         }
@@ -57,8 +57,8 @@ def get_tasks(
         order_by = []
 
         for rule in sort:
-            if rule in todo_sort_mapping:
-                order_by.append(todo_sort_mapping[rule])
+            if rule in tasks_sort_mapping:
+                order_by.append(tasks_sort_mapping[rule])
 
         if order_by:
             tasks_query = tasks_query.order_by(*order_by)
@@ -119,7 +119,7 @@ def update_task_by_id(
         session: DbSession,
         current_user: CurrentUser,
         id: PrimaryKey,
-        task_update: ToDoSchema,
+        task_update: TaskSchema,
 
 ) -> dict[str, Any]:
     try:
@@ -144,7 +144,7 @@ def update_task_by_id(
         session.commit()
         session.refresh(task)
         return {
-            "message": "Задача обновлена",
+            "msg": "Задача обновлена",
             "id": task.id,
             "task_name": task.name,
             "completion_status": task.completion_status,
@@ -165,7 +165,7 @@ def update_task_by_name(
         session: DbSession,
         current_user: CurrentUser,
         search_name: Annotated[str, Path(max_length=30)],
-        task_update: ToDoSchema,
+        task_update: TaskSchema,
 
 ) -> dict[str, Any]:
     try:
@@ -190,7 +190,7 @@ def update_task_by_name(
         session.commit()
         session.refresh(task)
         return {
-            "message": "Задача обновлена",
+            "msg": "Задача обновлена",
             "id": task.id,
             "task_name": task.name,
             "completion_status": task.completion_status,

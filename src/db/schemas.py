@@ -8,7 +8,7 @@ from src.routers.helpers.crud_helpers import SortTasksRule
 from src.routers.helpers.shared_tasks_helpers import SortSharedTasksRule
 
 
-class ToDoSchema(BaseModel):
+class TaskSchema(BaseModel):
     name: str | None = Field(default=None, max_length=30)
     text: str | None = Field(default=None, max_length=4096)
     completion_status: bool = Field(default=False)
