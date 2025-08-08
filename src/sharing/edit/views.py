@@ -7,10 +7,9 @@ from src.core.database import DbSession, PrimaryKey, UsernameStr
 from src.core.exceptions import handle_server_exception
 from src.db.models import SharedAccessEnum
 from src.db.schemas import TaskSchema
-from src.routers.helpers.shared_tasks_helpers import check_edit_permission
 
 from .service import (edit_shared_task_service,
-                      toggle_shared_task_status_service,
+                      toggle_shared_task_completion_status_service,
                       update_share_permission_service)
 
 router = APIRouter()
@@ -67,15 +66,15 @@ def edit_shared_task(
 
 
 @router.patch("/shared-tasks/{task_id}")
-def toggle_shared_task_status(
+def toggle_shared_task_completion_status(
         session: DbSession,
         current_user: CurrentUser,
         task_id: PrimaryKey,
 ) -> dict[str, Any]:
     try:
-        task = toggle_shared_task_status_service(session=session,
-                                                 current_user_id=current_user.id,
-                                                 task_id=task_id)
+        task = toggle_shared_task_completion_status_service(session=session,
+                                                            current_user_id=current_user.id,
+                                                            task_id=task_id)
         return {
             "msg": f"Статус задачи изменен на {'выполнено' if task.completion_status else 'не выполнено'}",
             "task_id": task.id,

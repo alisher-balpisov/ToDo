@@ -7,8 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.auth.views import auth_router
 from src.core.database import create_tables
-from src.routers.endpoint import api_router
-from src.sharing.views import router as sharing_router
+from src.endpoints import api_router
 
 
 @asynccontextmanager
@@ -31,4 +30,3 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(api_router)
-app.include_router(sharing_router)

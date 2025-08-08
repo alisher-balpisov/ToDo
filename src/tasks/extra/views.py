@@ -1,14 +1,13 @@
-from typing import Annotated, Any
+from typing import Any
 
 from fastapi import APIRouter
-from sqlalchemy import or_
 
 from src.auth.service import CurrentUser
 from src.core.database import DbSession, PrimaryKey
 from src.core.exceptions import handle_server_exception
-from src.db.models import Task
 
-from .helpers.crud_helpers import get_user_task
+from .service import (get_tasks_stats_service, search_tasks_service,
+                      toggle_task_completion_status_service)
 
 router = APIRouter()
 
@@ -21,16 +20,9 @@ def search_tasks(
 
 ) -> list[dict[str, Any]]:
     try:
-        search_pattern = f"%{search_query}%"
-        tasks = (
-            session.query(Task).filter(
-                or_(
-                    Task.name.ilike(search_pattern),
-                    Task.text.ilike(search_pattern)
-                ),
-                Task.user_id == current_user.id,
-            ).all()
-        )
+        tasks = search_tasks_service(session=session,
+                                     current_user_id=current_user.id,
+                                     search_query=search_query)
         return [
             {
                 "id": task.id,
@@ -49,17 +41,12 @@ def search_tasks(
 @router.get("/stats")
 def get_tasks_stats(
         session: DbSession,
-        current_user: CurrentUser,
-
+        current_user: CurrentUser
 ) -> dict[str, Any]:
     try:
-        query = session.query(Task).filter(Task.user_id == current_user.id)
-
-        total = query.count()
-        completed = query.filter(Task.completion_status).count()
-        uncompleted = query.filter(Task.completion_status is None).count()
-        completion_percentage = round(
-            (completed / total) * 100 if total > 0 else 0, 2)
+        result = get_tasks_stats_service(session=session,
+                                         current_user_id=current_user.id)
+        total, completed, uncompleted, completion_percentage = result
         return {
             "total_tasks": total,
             "completed_tasks": completed,
@@ -75,16 +62,11 @@ def toggle_task_completion_status(
         session: DbSession,
         current_user: CurrentUser,
         task_id: PrimaryKey,
-
 ) -> dict[str, Any]:
     try:
-        task = get_user_task(
-            session=session,
-            owner_id=current_user.id,
-            task_id=task_id)
-
-        task.completion_status = not task.completion_status
-        session.commit()
+        task = toggle_task_completion_status_service(session=session,
+                                                     current_user_id=current_user.id,
+                                                     task_id=task_id)
         return {
             "msg": f"Статус задачи изменен на {'выполнено' if task.completion_status else 'не выполнено'}",
             "task_id": task.id,

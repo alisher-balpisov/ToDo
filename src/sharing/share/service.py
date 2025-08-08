@@ -1,10 +1,10 @@
 from fastapi import HTTPException, status
 
 from src.auth.service import get_user_by_username
+from src.common.utils import is_user_task
 from src.core.database import DbSession
 from src.db.models import SharedAccessEnum, TaskShare
-from src.sharing.service import (is_already_shared, is_sharing_with_self,
-                                 is_user_task)
+from src.sharing.service import is_already_shared, is_sharing_with_self
 
 
 def share_task_service(

@@ -1,4 +1,4 @@
-from typing import List, Literal
+from typing import Literal
 
 from fastapi import Depends, HTTPException, Query
 from sqlalchemy.orm import Session

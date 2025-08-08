@@ -1,17 +1,16 @@
-from typing import ClassVar, List, Tuple, Type
+from typing import ClassVar, Optional, Tuple, Type
 
 from fastapi import Query
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.db.models import SharedAccessEnum
-from src.routers.helpers.crud_helpers import SortTasksRule
-from src.routers.helpers.shared_tasks_helpers import SortSharedTasksRule
+from src.tasks.helpers.crud_helpers import SortTasksRule
+from src.tasks.helpers.shared_tasks_helpers import SortSharedTasksRule
 
 
 class TaskSchema(BaseModel):
     name: str | None = Field(default=None, max_length=30)
     text: str | None = Field(default=None, max_length=4096)
-    completion_status: bool = Field(default=False)
 
 
 class TaskShareSchema(BaseModel):
@@ -20,7 +19,7 @@ class TaskShareSchema(BaseModel):
 
 
 def check_conflicting_rules(
-    sort: List[str], conflicts: List[Tuple[str, str]]
+    sort: list[str], conflicts: list[Tuple[str, str]]
 ) -> None:
     """
     Проверяет список сортировок на наличие конфликтующих правил.
@@ -30,7 +29,7 @@ def check_conflicting_rules(
             raise ValueError(f"Нельзя использовать одновременно '{a}' и '{b}'")
 
 
-ConflictsType = ClassVar[List[Tuple[str, str]]]
+ConflictsType = ClassVar[list[Tuple[str, str]]]
 
 
 class BaseSortValidator(BaseModel):
@@ -55,7 +54,7 @@ class BaseSortValidator(BaseModel):
 
 
 class SortTasksValidator(BaseSortValidator):
-    sort_tasks: List[SortTasksRule]
+    sort_tasks: list[SortTasksRule]
     _sort_field: str = 'sort_tasks'
 
     CONFLICTS: ConflictsType = [
@@ -65,7 +64,7 @@ class SortTasksValidator(BaseSortValidator):
 
 
 class SortSharedTasksValidator(BaseSortValidator):
-    sort_shared_tasks: List[SortSharedTasksRule]
+    sort_shared_tasks: list[SortSharedTasksRule]
     _sort_field: str = 'sort_shared_tasks'
 
     CONFLICTS: ConflictsType = SortTasksValidator.CONFLICTS + [

@@ -1,22 +1,22 @@
-from typing import List
+from typing
 
 from fastapi import HTTPException, status
 
 from src.auth.models import ToDoUser
 from src.auth.service import get_user_by_id
+from src.common.utils import get_task, get_task_user, map_sort_rules
 from src.core.database import DbSession
 from src.db.models import SharedAccessEnum, Task, TaskShare
 from src.db.schemas import SortSharedTasksValidator
-from src.routers.helpers.shared_tasks_helpers import (
-    SortSharedTasksRule, shared_tasks_sort_mapping)
-from src.sharing.service import (get_permission_level, get_task, get_task_user,
-                                 get_user_shared_task, map_sort_rules)
+from src.sharing.service import get_permission_level, get_user_shared_task
+from src.tasks.helpers.shared_tasks_helpers import (SortSharedTasksRule,
+                                                    shared_tasks_sort_mapping)
 
 
 def get_shared_tasks_service(
     session,
     current_user_id: int,
-    sort_shared_tasks: List[SortSharedTasksRule],
+    sort_shared_tasks: list[SortSharedTasksRule],
     skip: int,
     limit: int
 ):

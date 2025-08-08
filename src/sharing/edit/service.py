@@ -1,11 +1,12 @@
 from fastapi import HTTPException, status
 
 from src.auth.service import get_user_by_username
+from src.common.utils import is_user_task
 from src.core.database import PrimaryKey
 from src.db.models import SharedAccessEnum
 from src.db.schemas import TaskSchema
 from src.sharing.service import (get_permission_level, get_share_record,
-                                 get_user_shared_task, is_user_task)
+                                 get_user_shared_task)
 
 
 def update_share_permission_service(
@@ -65,15 +66,13 @@ def edit_shared_task_service(
         task.name = task_update.name
     if task_update.text is not None:
         task.text = task_update.text
-    if task_update.completion_status is not None:
-        task.completion_status = task_update.completion_status
 
     session.commit()
     session.refresh(task)
     return task
 
 
-def toggle_shared_task_status_service(
+def toggle_shared_task_completion_status_service(
         session,
         current_user_id: int,
         task_id: int,
@@ -81,7 +80,7 @@ def toggle_shared_task_status_service(
     task = get_user_shared_task(session, current_user_id, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Задача не найдена")
-    
+
     if get_permission_level(session, current_user_id, task_id) is not SharedAccessEnum.edit:
         raise HTTPException(
             status_code=403, detail="Нет доступа для редактирования задачи"
@@ -90,4 +89,4 @@ def toggle_shared_task_status_service(
     task.completion_status = not task.completion_status
     session.commit()
     session.refresh()
-    return task 
+    return task

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+
 from typing import Annotated, Any
 
 from fastapi import APIRouter, HTTPException, Path, Query, status
@@ -8,7 +8,9 @@ from src.core.database import DbSession, PrimaryKey
 from src.core.exceptions import handle_server_exception
 from src.db.models import Task
 from src.db.schemas import SortTasksValidator, TaskSchema
-from src.routers.helpers.crud_helpers import tasks_sort_mapping
+from src.tasks.helpers.crud_helpers import tasks_sort_mapping
+
+from .service import create_task_service, get_tasks_service
 
 router = APIRouter()
 
@@ -18,18 +20,12 @@ def create_task(
         session: DbSession,
         current_user: CurrentUser,
         task: TaskSchema,
-
 ) -> dict[str, str] | None:
     try:
-        new_task = Task(
-            name=task.name,
-            text=task.text,
-            completion_status=False,
-            date_time=datetime.now(timezone.utc).astimezone(),
-            user_id=current_user.id,
-        )
-        session.add(new_task)
-        session.commit()
+        new_task = create_task_service(session=session,
+                                       current_user_id=current_user.id,
+                                       task_name=task.name,
+                                       task_text=task.text)
         return {
             "msg": "Задача добавлена",
             "task_id": new_task.id,
@@ -51,19 +47,11 @@ def get_tasks(
 
 ) -> list[dict[str, Any]]:
     try:
-        tasks_query = session.query(Task).filter(
-            Task.user_id == current_user.id)
-
-        order_by = []
-
-        for rule in sort:
-            if rule in tasks_sort_mapping:
-                order_by.append(tasks_sort_mapping[rule])
-
-        if order_by:
-            tasks_query = tasks_query.order_by(*order_by)
-
-        tasks = tasks_query.offset(skip).limit(limit).all()
+        tasks = get_tasks_service(session=session,
+                                  current_user_id=current_user.id,
+                                  sort=sort.sort_tasks,
+                                  skip=skip,
+                                  limit=limit)
         return {
             "tasks": [
                 {
@@ -115,7 +103,7 @@ def get_task(
 
 
 @router.put("/{id}")
-def update_task_by_id(
+def update_task(
         session: DbSession,
         current_user: CurrentUser,
         id: PrimaryKey,
@@ -136,10 +124,6 @@ def update_task_by_id(
 
         task.name = task_update.name if task_update.name else task.name
         task.text = task_update.text if task_update.text else task.text
-        task.completion_status = (
-            task_update.completion_status if task_update.completion_status is not None
-            else task.completion_status
-        )
 
         session.commit()
         session.refresh(task)
@@ -158,53 +142,6 @@ def update_task_by_id(
     except Exception as e:
         session.rollback()
         handle_server_exception(e, "Ошибка сервера при изменении задачи по id")
-
-
-@router.put("/by_name/{search_name}")
-def update_task_by_name(
-        session: DbSession,
-        current_user: CurrentUser,
-        search_name: Annotated[str, Path(max_length=30)],
-        task_update: TaskSchema,
-
-) -> dict[str, Any]:
-    try:
-        task = session.query(Task).filter(
-            Task.name == search_name,
-            Task.user_id == current_user.id
-        ).first()
-
-        if not task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Задача не найдена"
-            )
-
-        task.name = task_update.name if task_update.name else task.name
-        task.text = task_update.text if task_update.text else task.text
-        task.completion_status = (
-            task_update.completion_status if task_update.completion_status is not None
-            else task.completion_status
-        )
-
-        session.commit()
-        session.refresh(task)
-        return {
-            "msg": "Задача обновлена",
-            "id": task.id,
-            "task_name": task.name,
-            "completion_status": task.completion_status,
-            "date_time": task.date_time.isoformat(),
-            "text": task.text,
-        }
-
-    except HTTPException:
-        session.rollback()
-        raise
-    except Exception as e:
-        session.rollback()
-        handle_server_exception(
-            e, "Ошибка сервера при изменении задачи по имени")
 
 
 @router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)

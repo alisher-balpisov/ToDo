@@ -1,4 +1,4 @@
-from typing import List, Literal
+from typing import Literal
 
 from fastapi import Query
 
@@ -15,5 +15,3 @@ tasks_sort_mapping = {
     "status_false_first": Task.completion_status.asc(),
     "status_true_first": Task.completion_status.desc(),
 }
-
-
