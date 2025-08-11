@@ -1,13 +1,8 @@
-from typing import Any
-
-from fastapi import APIRouter, HTTPException
 from sqlalchemy import or_
 
-from src.auth.service import CurrentUser
+from src.common.models import Task
 from src.common.utils import get_user_task
-from src.core.database import DbSession, PrimaryKey
-from src.core.exceptions import handle_server_exception
-from src.db.models import Task
+from src.exceptions import TASK_NOT_FOUND
 
 
 def search_tasks_service(
@@ -52,7 +47,7 @@ def toggle_task_completion_status_service(
 ) -> Task:
     task = get_user_task(session, current_user_id, task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="Задача не найдена")
+        raise TASK_NOT_FOUND
 
     task.completion_status = not task.completion_status
     session.commit()

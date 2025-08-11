@@ -1,7 +1,7 @@
 import re
 from typing import Annotated, Generator
 
-from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
+from fastapi import Depends, File, UploadFile
 from pydantic import AfterValidator, Field
 from sqlalchemy import create_engine
 from sqlalchemy.orm import (DeclarativeBase, Session, declared_attr,

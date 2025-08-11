@@ -3,7 +3,7 @@ from fastapi import APIRouter
 from src.auth.service import CurrentUser
 from src.core.database import DbSession, PrimaryKey, UsernameStr
 from src.core.exceptions import handle_server_exception
-from src.db.schemas import TaskShareSchema
+from src.sharing.schemas import TaskShareSchema
 
 from .service import share_task_service, unshare_task_service
 

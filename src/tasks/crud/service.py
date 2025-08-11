@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
-from typing
 
-from fastapi import HTTPException, Query, status
+from fastapi import HTTPException
 
-from src.common.utils import map_sort_rules
-from src.db.models import Task
-from src.tasks.helpers.crud_helpers import SortTasksRule, tasks_sort_mapping
+from src.common.models import Task
+from src.common.utils import get_user_task, map_sort_rules
+from src.exceptions import TASK_NAME_REQUIRED, TASK_NOT_FOUND
+from src.tasks.helpers import tasks_sort_mapping
 
 
 def create_task_service(
@@ -15,10 +15,8 @@ def create_task_service(
         task_text: str | None
 ) -> Task:
     if task_name is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Имя задачи не задано"
-        )
+        raise TASK_NAME_REQUIRED
+
     new_task = Task(
         name=task_name,
         text=task_text,
@@ -28,7 +26,7 @@ def create_task_service(
     )
     session.add(new_task)
     session.commit()
-    session.refresh()
+    session.refresh(new_task)
     return new_task
 
 
@@ -48,3 +46,48 @@ def get_tasks_service(
 
     tasks = tasks_query.offset(skip).limit(limit).all()
     return tasks
+
+
+def get_task_service(
+        session,
+        current_user_id: int,
+        task_id: int
+) -> Task:
+    task = get_user_task(session, current_user_id, task_id)
+    if not task:
+        raise TASK_NOT_FOUND
+    return task
+
+
+def update_task_service(
+        session,
+        current_user_id: int,
+        task_id: int,
+        name_update: str | None,
+        text_update: str | None
+):
+    try:
+        task = get_user_task(session, current_user_id, task_id)
+        if not task:
+            TASK_NOT_FOUND
+        task.name = name_update if name_update else task.name
+        task.text = text_update if text_update else task.text
+
+        session.commit()
+        session.refresh(task)
+        return task
+    except HTTPException:
+        session.rollback()
+        raise
+
+
+def delete_task_service(
+        session,
+        current_user_id: int,
+        task_id: int
+):
+    task = get_user_task(session, current_user_id, task_id)
+    if not task:
+        raise TASK_NOT_FOUND
+    session.delete(task)
+    session.commit()

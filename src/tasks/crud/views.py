@@ -1,16 +1,16 @@
 
-from typing import Annotated, Any
+from typing import Any
 
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from src.auth.service import CurrentUser
+from src.common.schemas import TaskSchema
 from src.core.database import DbSession, PrimaryKey
 from src.core.exceptions import handle_server_exception
-from src.db.models import Task
-from src.db.schemas import SortTasksValidator, TaskSchema
-from src.tasks.helpers.crud_helpers import tasks_sort_mapping
+from src.tasks.schemas import SortTasksValidator
 
-from .service import create_task_service, get_tasks_service
+from .service import (create_task_service, delete_task_service,
+                      get_task_service, get_tasks_service, update_task_service)
 
 router = APIRouter()
 
@@ -20,7 +20,7 @@ def create_task(
         session: DbSession,
         current_user: CurrentUser,
         task: TaskSchema,
-) -> dict[str, str] | None:
+) -> dict[str, Any] | None:
     try:
         new_task = create_task_service(session=session,
                                        current_user_id=current_user.id,
@@ -28,7 +28,7 @@ def create_task(
                                        task_text=task.text)
         return {
             "msg": "Задача добавлена",
-            "task_id": new_task.id,
+            "task_id": str(new_task.id),
             "task_name": new_task.name
         }
 
@@ -76,19 +76,13 @@ def get_tasks(
 def get_task(
         session: DbSession,
         current_user: CurrentUser,
-        id: PrimaryKey,
+        task_id: PrimaryKey,
 
 ) -> dict[str, Any]:
     try:
-        task = (
-            session.query(Task).filter(
-                Task.id == id,
-                Task.user_id == current_user.id
-            ).first()
-        )
-
-        if task is None:
-            raise HTTPException(status_code=404, detail="ToDo не существует")
+        task = get_task_service(session=session,
+                                current_user_id=current_user.id,
+                                task_id=task_id)
         return {
             "id": task.id,
             "task_name": task.name,
@@ -106,27 +100,15 @@ def get_task(
 def update_task(
         session: DbSession,
         current_user: CurrentUser,
-        id: PrimaryKey,
+        task_id: PrimaryKey,
         task_update: TaskSchema,
-
 ) -> dict[str, Any]:
     try:
-        task = session.query(Task).filter(
-            Task.id == id,
-            Task.user_id == current_user.id
-        ).first()
-
-        if not task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Задача не найдена"
-            )
-
-        task.name = task_update.name if task_update.name else task.name
-        task.text = task_update.text if task_update.text else task.text
-
-        session.commit()
-        session.refresh(task)
+        task = update_task_service(session=session,
+                                   current_user_id=current_user.id,
+                                   task_id=task_id,
+                                   name_update=task_update.name,
+                                   text_update=task_update.text)
         return {
             "msg": "Задача обновлена",
             "id": task.id,
@@ -136,9 +118,6 @@ def update_task(
             "text": task.text,
         }
 
-    except HTTPException:
-        session.rollback()
-        raise
     except Exception as e:
         session.rollback()
         handle_server_exception(e, "Ошибка сервера при изменении задачи по id")
@@ -148,25 +127,13 @@ def update_task(
 def delete_task(
         session: DbSession,
         current_user: CurrentUser,
-        id: PrimaryKey,
-
+        task_id: PrimaryKey,
 ) -> None:
     try:
-        task = session.query(Task).filter(
-            Task.id == id,
-            Task.user_id == current_user.id
-        ).first()
-
-        if not task:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Задача не найдена"
-            )
-
-        session.delete(task)
-        session.commit()
+        delete_task_service(session=session,
+                            current_user_id=current_user.id,
+                            task_id=task_id)
         return
-
     except Exception as e:
         session.rollback()
         handle_server_exception(e, "Ошибка сервера при удалении задачи")

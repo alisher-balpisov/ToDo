@@ -3,17 +3,16 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from src.auth.models import (ToDoUser, TokenSchema, UserPasswordUpdateSchema,
-                             UserRegisterSchema)
-from src.core.database import DbSession, PrimaryKey
-from src.core.exceptions import handle_server_exception
+from src.auth.schemas import (TokenSchema, UserPasswordUpdateSchema,
+                              UserRegisterSchema)
+from src.core.database import DbSession
 
 from .service import CurrentUser, create, get_user_by_username
 
-auth_router = APIRouter()
+router = APIRouter()
 
 
-@auth_router.post("/register")
+@router.post("/register")
 def register_user(
         session: DbSession,
         user_in: UserRegisterSchema,
@@ -38,7 +37,7 @@ def register_user(
             'password': user_in.password}
 
 
-@auth_router.post("/login")
+@router.post("/login")
 async def login_user(
         session: DbSession,
         user_in: Annotated[OAuth2PasswordRequestForm, Depends()]
@@ -46,7 +45,7 @@ async def login_user(
     user = get_user_by_username(session=session, username=user_in.username)
     if user and user.verify_password(user_in.password):
         return TokenSchema(access_token=user.get_token, token_type="bearer")
-    
+
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail=[
@@ -64,7 +63,7 @@ async def login_user(
     )
 
 
-@auth_router.post("/change-password")
+@router.post("/change-password")
 def change_password(
         session: DbSession,
         current_user: CurrentUser,

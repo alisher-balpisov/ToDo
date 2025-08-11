@@ -1,16 +1,15 @@
-from typing
-
 from fastapi import HTTPException, status
 
 from src.auth.models import ToDoUser
 from src.auth.service import get_user_by_id
-from src.common.utils import get_task, get_task_user, map_sort_rules
+from src.common.utils import (get_task, get_task_user, get_user_task,
+                              map_sort_rules)
 from src.core.database import DbSession
-from src.db.models import SharedAccessEnum, Task, TaskShare
-from src.db.schemas import SortSharedTasksValidator
+from src.exceptions import LIST_EMPTY, TASK_NOT_FOUND, TASK_NOT_OWNED
+from src.sharing.helpers import SortSharedTasksRule, shared_tasks_sort_mapping
+from src.sharing.models import Share, SharedAccessEnum, Task
+from src.sharing.schemas import SortSharedTasksValidator
 from src.sharing.service import get_permission_level, get_user_shared_task
-from src.tasks.helpers.shared_tasks_helpers import (SortSharedTasksRule,
-                                                    shared_tasks_sort_mapping)
 
 
 def get_shared_tasks_service(
@@ -27,17 +26,14 @@ def get_shared_tasks_service(
         session.query(
             Task,
             ToDoUser.username.label("owner_username"),
-            TaskShare.permission_level
+            Share.permission_level
         )
-        .join(TaskShare, TaskShare.task_id == Task.id)
+        .join(Share, Share.task_id == Task.id)
         .join(ToDoUser, ToDoUser.id == Task.user_id)
-        .filter(TaskShare.target_user_id == current_user_id)
+        .filter(Share.target_user_id == current_user_id)
     )
     if not tasks_info:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Список пуст"
-        )
+        raise LIST_EMPTY
 
     order_by = map_sort_rules(sort, shared_tasks_sort_mapping)
     if order_by:
@@ -53,10 +49,7 @@ def get_shared_task_service(
 ):
     task = get_user_shared_task(session, current_user_id, task_id)
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Задача не найдена"
-        )
+        raise TASK_NOT_FOUND
     owner = get_task_user(session, task_id)
     permission_level = get_permission_level(session, current_user_id, task_id)
     return task, owner, permission_level
@@ -69,10 +62,7 @@ def check_task_permission_level(session, current_user_id: int, task_id: int) -> 
 
     shared_task = get_user_shared_task(session, current_user_id, task_id)
     if not shared_task:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Задача не найдена или не принадлежит вам"
-        )
+        raise TASK_NOT_OWNED
 
     task, permission_level = shared_task
     return task, permission_level
@@ -102,9 +92,9 @@ def get_task_collaborators_service(
         )
 
     shares = (
-        session.query(TaskShare, ToDoUser)
-        .join(ToDoUser, ToDoUser.id == TaskShare.target_user_id)
-        .filter(TaskShare.task_id == task_id)
+        session.query(Share, ToDoUser)
+        .join(ToDoUser, ToDoUser.id == Share.target_user_id)
+        .filter(Share.task_id == task_id)
         .all()
     )
 
@@ -129,10 +119,7 @@ def get_task_permissions_service(
 ):
     task = get_task(session, task_id)
     if not task:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Задача не найдена"
-        )
+        raise TASK_NOT_FOUND
 
     permission_level = get_permission_level(session, current_user_id, task_id)
 

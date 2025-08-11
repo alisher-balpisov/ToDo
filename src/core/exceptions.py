@@ -10,5 +10,5 @@ def handle_server_exception(e: Exception, message: str = "Ошибка серв�
     logger.exception(message)
     raise HTTPException(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail=f"{message}: {str(e)}"
+        detail=[{"msg": f"{message}: {str(e)}"}]
     )

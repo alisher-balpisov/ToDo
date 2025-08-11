@@ -1,18 +1,20 @@
-from src.db.models import SharedAccessEnum, Task, TaskShare
+from src.common.models import Task
+
+from .models import Share, SharedAccessEnum
 
 
 def get_user_shared_task(session, target_user_id: int, task_id: int) -> Task:
     return session.query(Task).join(
-        TaskShare, TaskShare.task_id == Task.id).filter(
+        Share, Share.task_id == Task.id).filter(
         Task.id == task_id,
-        TaskShare.target_user_id == target_user_id,
+        Share.target_user_id == target_user_id,
     ).first()
 
 
 def is_already_shared(session, target_user_id: int, task_id: int) -> bool:
-    return session.query(TaskShare).filter(
-        TaskShare.task_id == task_id,
-        TaskShare.target_user_id == target_user_id,
+    return session.query(Share).filter(
+        Share.task_id == task_id,
+        Share.target_user_id == target_user_id,
     ).first() is not None
 
 
@@ -25,18 +27,18 @@ def get_share_record(
         owner_id: int,
         target_user_id: int,
         task_id: int
-) -> TaskShare:
-    return session.query(TaskShare).filter(
-        TaskShare.task_id == task_id,
-        TaskShare.owner_id == owner_id,
-        TaskShare.target_user_id == target_user_id,
+) -> Share:
+    return session.query(Share).filter(
+        Share.task_id == task_id,
+        Share.owner_id == owner_id,
+        Share.target_user_id == target_user_id,
     ).one_or_none()
 
 
 def get_permission_level(session, current_user_id: int, task_id: int) -> SharedAccessEnum | None:
-    permission_level = session.query(TaskShare.permission_level).filter(
-        TaskShare.task_id == task_id,
-        TaskShare.target_user_id == current_user_id
+    permission_level = session.query(Share.permission_level).filter(
+        Share.task_id == task_id,
+        Share.target_user_id == current_user_id
     ).one_or_none()
     if not permission_level:
         return None

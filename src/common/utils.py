@@ -1,8 +1,9 @@
 from typing import Any
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException, UploadFile, status
 
-from src.db.models import Task, ToDoUser
+from src.auth.models import ToDoUser
+from src.common.models import Task
 
 MAX_FILE_SIZE_MB = 20
 MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024
@@ -45,7 +46,8 @@ async def validate_and_read_file(uploaded_file: UploadFile) -> bytes:
     file_data = await uploaded_file.read()
     if len(file_data) > MAX_FILE_SIZE:
         raise HTTPException(
-            status_code=413,
-            detail="Размер файла превышает максимально допустимый (20MB)",
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=[{"msg": "Размер файла превышает максимально допустимый (20MB)"}],
         )
     return file_data
+

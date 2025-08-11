@@ -1,10 +1,11 @@
 import mimetypes
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException, UploadFile, status
 
+from src.common.models import Task
 from src.common.utils import validate_and_read_file
-from src.core.database import PrimaryKey
-from src.db.models import SharedAccessEnum, Task
+from src.exceptions import FILE_NOT_FOUND, TASK_NOT_FOUND
+from src.sharing.models import SharedAccessEnum
 from src.sharing.service import get_permission_level, get_user_shared_task
 
 
@@ -16,11 +17,12 @@ def upload_file_to_shared_task_service(
 ) -> None:
     task = get_user_shared_task(session, current_user_id, task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="Задача не найдена")
+        raise TASK_NOT_FOUND
 
     if get_permission_level(session, current_user_id, task_id) is not SharedAccessEnum.edit:
         raise HTTPException(
-            status_code=403, detail="Нет доступа для редактирования задачи"
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=[{"msg": "Нет доступа для редактирования задачи"}]
         )
 
     file_data = validate_and_read_file(uploaded_file)
@@ -35,11 +37,10 @@ def get_shared_task_file_service(
         task_id: int
 ) -> tuple[Task, str]:
     task = get_user_shared_task(session, current_user_id, task_id)
-
     if not task:
-        raise HTTPException(status_code=404, detail="Задача не найдена")
+        raise TASK_NOT_FOUND
     if not task.file_data:
-        raise HTTPException(status_code=404, detail="Файл не найден")
+        raise FILE_NOT_FOUND
 
     mime_type, _ = mimetypes.guess_type(task.file_name or "")
 

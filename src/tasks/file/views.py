@@ -1,14 +1,11 @@
-import mimetypes
 from io import BytesIO
-from typing import Annotated
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
 from src.auth.service import CurrentUser
 from src.core.database import DbSession, PrimaryKey, UploadedFile
 from src.core.exceptions import handle_server_exception
-from src.db.models import Task
 
 from .service import get_task_file_service, upload_file_to_task_service
 
@@ -22,7 +19,7 @@ async def upload_file_to_task(
         uploaded_file: UploadedFile,
         task_id: PrimaryKey,
 
-) -> dict[str, str] | None:
+):
     try:
         upload_file_to_task_service(session=session,
                                     current_user_id=current_user.id,

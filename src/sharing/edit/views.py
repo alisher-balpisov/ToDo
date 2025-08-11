@@ -3,14 +3,14 @@ from typing import Any
 from fastapi import APIRouter
 
 from src.auth.service import CurrentUser
+from src.common.schemas import TaskSchema
 from src.core.database import DbSession, PrimaryKey, UsernameStr
 from src.core.exceptions import handle_server_exception
-from src.db.models import SharedAccessEnum
-from src.db.schemas import TaskSchema
+from src.sharing.models import SharedAccessEnum
 
-from .service import (edit_shared_task_service,
-                      toggle_shared_task_completion_status_service,
-                      update_share_permission_service)
+from .service import (toggle_shared_task_completion_status_service,
+                      update_share_permission_service,
+                      update_shared_task_service)
 
 router = APIRouter()
 
@@ -38,17 +38,17 @@ def update_share_permission(
 
 
 @router.put("/shared-tasks/{task_id}")
-def edit_shared_task(
+def update_shared_task(
         session: DbSession,
         current_user: CurrentUser,
         task_id: PrimaryKey,
         task_update: TaskSchema,
 ) -> dict[str, Any]:
     try:
-        task = edit_shared_task_service(session=session,
-                                        current_user_id=current_user.id,
-                                        task_id=task_id,
-                                        task_update=task_update)
+        task = update_shared_task_service(session=session,
+                                          current_user_id=current_user.id,
+                                          task_id=task_id,
+                                          task_update=task_update)
         return {
             "msg": "Расшаренная задача успешно обновлена",
             "id": task.id,
