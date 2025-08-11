@@ -51,5 +51,5 @@ def toggle_task_completion_status_service(
 
     task.completion_status = not task.completion_status
     session.commit()
-    session.refresh()
+    session.refresh(task)
     return task

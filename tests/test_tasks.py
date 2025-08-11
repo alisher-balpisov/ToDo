@@ -9,12 +9,15 @@ def test_create_task(auth_clients):
     assert "task_id" in response.json()
     assert response.json()["task_name"] == "Test Task"
 
+
 def test_get_tasks(auth_clients):
     client1, _ = auth_clients
-    response = client1.get("/tasks/?sort=asc")
+    response = client1.get("/tasks/",
+                           params={"sort_tasks": ["date_asc"]})
     assert response.status_code == 200
     assert "tasks" in response.json()
     assert isinstance(response.json()["tasks"], list)
+
 
 def test_get_task(auth_clients):
     client1, _ = auth_clients
@@ -27,6 +30,7 @@ def test_get_task(auth_clients):
     assert response.status_code == 200
     assert response.json()["id"] == task_id
     assert response.json()["task_name"] == "Another Task"
+
 
 def test_update_task(auth_clients):
     client1, _ = auth_clients
@@ -42,6 +46,7 @@ def test_update_task(auth_clients):
     assert response.status_code == 200
     assert response.json()["msg"] == "Задача обновлена"
     assert response.json()["task_name"] == "Updated Task"
+
 
 def test_delete_task(auth_clients):
     client1, _ = auth_clients

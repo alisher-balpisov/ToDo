@@ -3,13 +3,14 @@ from fastapi import HTTPException, status
 from src.auth.models import ToDoUser
 from src.auth.service import get_user_by_id
 from src.common.utils import (get_task, get_task_user, get_user_task,
-                              map_sort_rules)
+                              is_task_owner, map_sort_rules)
 from src.core.database import DbSession
 from src.exceptions import LIST_EMPTY, TASK_NOT_FOUND, TASK_NOT_OWNED
 from src.sharing.helpers import SortSharedTasksRule, shared_tasks_sort_mapping
 from src.sharing.models import Share, SharedAccessEnum, Task
 from src.sharing.schemas import SortSharedTasksValidator
-from src.sharing.service import get_permission_level, get_user_shared_task
+from src.sharing.service import (get_permission_level, get_user_shared_task,
+                                 is_collaborator)
 
 
 def get_shared_tasks_service(
@@ -73,42 +74,41 @@ def get_task_collaborators_service(
         current_user_id: int,
         task_id: int,
 ) -> list[dict]:
+    task = get_task(session, task_id)
+    if not task:
+        raise TASK_NOT_FOUND
+
+    if not is_task_owner(session, current_user_id, task_id):
+        if not is_collaborator(session, current_user_id, task_id):
+            raise TASK_NOT_OWNED
+
     collaborators = []
-
-    owned_task = get_user_task(session, current_user_id, task_id)
-    if owned_task:
-        return owned_task, SharedAccessEnum.edit
-
-    owner = get_user_by_id(session, current_user_id)
+    owner = get_user_by_id(session, task.user_id)
     if owner:
-        collaborators.append(
-            {
-                "user_id": owner.id,
-                "username": owner.username,
-                "role": "owner",
-                "permission_level": "full_access",
-                "can_revoke": False,
-            }
-        )
+        collaborators.append({
+            "user_id": owner.id,
+            "username": owner.username,
+            "role": "owner",
+            "permission_level": "full_access",
+            "can_revoke": False,
+        })
 
-    shares = (
+    shared_users_query = (
         session.query(Share, ToDoUser)
-        .join(ToDoUser, ToDoUser.id == Share.target_user_id)
+        .join(ToDoUser, Share.target_user_id == ToDoUser.id)
         .filter(Share.task_id == task_id)
-        .all()
     )
 
-    for share, ToDoUser in shares:
-        collaborators.append(
-            {
-                "user_id": ToDoUser.id,
-                "username": ToDoUser.username,
-                "role": "collaborator",
-                "permission_level": share.permission_level.value,
-                "shared_date": share.date_time.isoformat(),
-                "can_revoke": share.owner_id == current_user_id,
-            }
-        )
+    for share, user in shared_users_query.all():
+        collaborators.append({
+            "user_id": user.id,
+            "username": user.username,
+            "role": "collaborator",
+            "permission_level": share.permission_level.value,
+            "shared_date": share.date_time.isoformat(),
+            "can_revoke": is_task_owner(session, current_user_id, task_id),
+        })
+
     return collaborators
 
 

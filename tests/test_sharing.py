@@ -8,7 +8,7 @@ def test_share_task(auth_clients):
     
     response = client1.post(
         f"/sharing/tasks/{task_id}/shares",
-        json={"target_username": "testuser2", "permission_level": "read"},
+        json={"target_username": "testuser2", "permission_level": "view"},
     )
     assert response.status_code == 200
     assert response.json()["msg"] == "Задача успешно расшарена с пользователем"
@@ -23,7 +23,7 @@ def test_unshare_task(auth_clients):
     
     client1.post(
         f"/sharing/tasks/{task_id}/shares",
-        json={"target_username": "testuser2", "permission_level": "read"},
+        json={"target_username": "testuser2", "permission_level": "view"},
     )
     
     response = client1.delete(f"/sharing/tasks/{task_id}/shares/testuser2")

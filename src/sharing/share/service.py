@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 
 from src.auth.service import get_user_by_username
-from src.common.utils import is_user_task
+from src.common.utils import is_task_owner
 from src.core.database import DbSession
 from src.exceptions import (TASK_ALREADY_SHARED, TASK_NOT_OWNED,
                             TASK_NOT_SHARED_WITH_USER, USER_NOT_FOUND)
@@ -17,7 +17,7 @@ def share_task_service(
         target_username: str,
         permission_level: SharedAccessEnum
 ) -> None:
-    if not is_user_task(session, owner_id, task_id):
+    if not is_task_owner(session, owner_id, task_id):
         raise TASK_NOT_OWNED
 
     target_user = get_user_by_username(session, target_username)
@@ -49,7 +49,7 @@ def unshare_task_service(
         task_id: int,
         target_username: str
 ) -> None:
-    if not is_user_task(session, owner_id, task_id):
+    if not is_task_owner(session, owner_id, task_id):
         raise TASK_NOT_OWNED
 
     target_user = get_user_by_username(session, target_username)

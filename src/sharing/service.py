@@ -22,6 +22,13 @@ def is_sharing_with_self(owner_id: int, target_user_id: int) -> bool:
     return owner_id == target_user_id
 
 
+def is_collaborator(session, target_user_id, task_id):
+    return session.query(Share).filter(
+        Share.task_id == task_id,
+        Share.target_user_id == target_user_id
+    ).first()
+
+
 def get_share_record(
         session,
         owner_id: int,

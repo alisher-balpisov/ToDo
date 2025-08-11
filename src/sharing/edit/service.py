@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 
 from src.auth.service import get_user_by_username
 from src.common.schemas import TaskSchema
-from src.common.utils import is_user_task
+from src.common.utils import is_task_owner
 from src.core.database import PrimaryKey
 from src.exceptions import (NO_EDIT_ACCESS, TASK_NOT_FOUND, TASK_NOT_OWNED,
                             TASK_NOT_SHARED_WITH_USER, USER_NOT_FOUND)
@@ -18,7 +18,7 @@ def update_share_permission_service(
         task_id: int,
         target_username: str
 ) -> None:
-    if not is_user_task(session, owner_id, task_id):
+    if not is_task_owner(session, owner_id, task_id):
         raise TASK_NOT_OWNED
 
     target_user = get_user_by_username(session, target_username)
@@ -76,5 +76,5 @@ def toggle_shared_task_completion_status_service(
 
     task.completion_status = not task.completion_status
     session.commit()
-    session.refresh()
+    session.refresh(task)
     return task

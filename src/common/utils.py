@@ -23,13 +23,13 @@ def get_task_user(session, task_id: int) -> ToDoUser:
 
 
 def get_user_task(session, user_id: int, task_id: int) -> Task:
-    return session.Query(Task).filter(
+    return session.query(Task).filter(
         Task.user_id == user_id,
         Task.id == task_id
     ).one_or_none()
 
 
-def is_user_task(session, user_id: int, task_id: int) -> bool:
+def is_task_owner(session, user_id: int, task_id: int) -> bool:
     return session.query(Task).filter(
         Task.user_id == user_id,
         Task.id == task_id
@@ -47,7 +47,7 @@ async def validate_and_read_file(uploaded_file: UploadFile) -> bytes:
     if len(file_data) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail=[{"msg": "Размер файла превышает максимально допустимый (20MB)"}],
+            detail=[
+                {"msg": "Размер файла превышает максимально допустимый (20MB)"}],
         )
     return file_data
-
