@@ -14,7 +14,7 @@ def create_task_service(
         task_name: str | None,
         task_text: str | None
 ) -> Task:
-    if task_name is None:
+    if task_name is None or task_name.strip() == '':
         raise TASK_NAME_REQUIRED
 
     new_task = Task(

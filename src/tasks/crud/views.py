@@ -28,7 +28,7 @@ def create_task(
                                        task_text=task.text)
         return {
             "msg": "Задача добавлена",
-            "task_id": str(new_task.id),
+            "task_id": new_task.id,
             "task_name": new_task.name
         }
 

@@ -46,7 +46,7 @@ def credentials_exception():
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail=[{"msg": "Не удалось подтвердить учетные данные"}],
-        headers = {"WWW-Authenticate": "Bearer"}
+        headers={"WWW-Authenticate": "Bearer"}
     )
 
 
@@ -55,20 +55,18 @@ async def get_current_user(
         token: Annotated[str, Depends(oauth2_scheme)]
 ) -> ToDoUser:
     try:
-        payload= jwt.decode(token, TODO_JWT_SECRET, algorithms=[TODO_JWT_ALG])
-        print(payload)
-        username: str= payload.get("sub")
-        print(username)
+        payload = jwt.decode(token, TODO_JWT_SECRET, algorithms=[TODO_JWT_ALG])
+        username: str = payload.get("sub")
         if username is None:
             raise credentials_exception()
-        token_data= TokenDataSchema(username=username)
+        token_data = TokenDataSchema(username=username)
     except JWTError:
         raise credentials_exception()
 
-    user= get_user_by_username(
+    user = get_user_by_username(
         session=session, username=token_data.username)
     if user is None:
         raise credentials_exception()
     return user
 
-CurrentUser= Annotated[ToDoUser, Depends(get_current_user)]
+CurrentUser = Annotated[ToDoUser, Depends(get_current_user)]
