@@ -1,11 +1,13 @@
+from fastapi import Query
+
 from src.common.schemas import BaseSortValidator, ConflictsType
 
 from .helpers import SortTasksRule
 
 
 class SortTasksValidator(BaseSortValidator):
-    sort_tasks: list[SortTasksRule]
-    _sort_field: str = 'sort_tasks'
+    sort: list[SortTasksRule] 
+    _sort_field: str = 'sort'
 
     CONFLICTS: ConflictsType = [
         ("date_desc", "date_asc"),

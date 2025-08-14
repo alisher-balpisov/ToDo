@@ -3,6 +3,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from src.auth.models import ToDoUser
+from src.auth.service import get_current_user
 from src.core.database import Base, get_db
 from src.main import app
 
@@ -42,3 +44,31 @@ def client(db):
     app.dependency_overrides[get_db] = override_get_db
     yield TestClient(app)
     app.dependency_overrides.clear()
+
+
+def create_test_user(client=client):
+    client.post("/auth/register", json={
+        "username": "testuser",
+        "password": "123456aA"
+    })
+    resp = client.post("/auth/login", data={
+        "username": "testuser",
+        "password": "123456aA"
+    })
+    token = resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+    return token, headers
+
+
+@pytest.fixture
+def token(client):
+    return create_test_user(client)[0]
+
+
+@pytest.fixture
+def headers(client):
+    return create_test_user(client)[1]
+
+
+def get_user(db, token) -> ToDoUser:
+    return get_current_user(session=db, token=token)

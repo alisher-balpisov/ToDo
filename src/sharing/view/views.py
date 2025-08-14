@@ -26,7 +26,7 @@ def get_shared_tasks(
     try:
         tasks_info = get_shared_tasks_service(session=session,
                                               current_user_id=current_user.id,
-                                              sort_shared_tasks=sort_shared_tasks,
+                                              sort_raw=sort_shared_tasks,
                                               skip=skip,
                                               limit=limit)
         return [

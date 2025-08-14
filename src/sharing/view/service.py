@@ -1,4 +1,4 @@
-from fastapi import HTTPException, status
+from fastapi import HTTPException, Query, status
 
 from src.auth.models import ToDoUser
 from src.auth.service import get_user_by_id
@@ -8,7 +8,7 @@ from src.core.database import DbSession
 from src.exceptions import LIST_EMPTY, TASK_NOT_FOUND, TASK_NOT_OWNED
 from src.sharing.helpers import SortSharedTasksRule, shared_tasks_sort_mapping
 from src.sharing.models import Share, SharedAccessEnum, Task
-from src.sharing.schemas import SortSharedTasksValidator
+from src.sharing.schemas import Sort, SortSharedTasksValidator
 from src.sharing.service import (get_permission_level, get_user_shared_task,
                                  is_collaborator)
 
@@ -16,12 +16,14 @@ from src.sharing.service import (get_permission_level, get_user_shared_task,
 def get_shared_tasks_service(
     session,
     current_user_id: int,
-    sort_shared_tasks: list[SortSharedTasksRule],
-    skip: int,
-    limit: int
+    sort_raw: list[SortSharedTasksRule] = Query(default=[]),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(100, ge=1, le=1000),
 ):
-    sort = SortSharedTasksValidator(
-        sort_shared_tasks=sort_shared_tasks).sort_shared_tasks
+    # /endpoint?sort=date_asc
+    params = Sort(sort_raw.query_params())
+
+    sort_raw = SortSharedTasksValidator(sort=sort_raw).sort
 
     tasks_info = (
         session.query(
@@ -36,9 +38,9 @@ def get_shared_tasks_service(
     if not tasks_info:
         raise LIST_EMPTY
 
-    order_by = map_sort_rules(sort, shared_tasks_sort_mapping)
-    if order_by:
-        tasks_info = tasks_info.order_by(*order_by)
+    # order_by = map_sort_rules(sort_raw, shared_tasks_sort_mapping)
+    # if order_by:
+    tasks_info = tasks_info.order_by(**params)
 
     return tasks_info.offset(skip).limit(limit).all()
 

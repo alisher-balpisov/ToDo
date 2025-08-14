@@ -1,12 +1,13 @@
 
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from src.auth.service import CurrentUser
 from src.common.schemas import TaskSchema
 from src.core.database import DbSession, PrimaryKey
 from src.core.exceptions import handle_server_exception
+from src.tasks.helpers import SortTasksRule
 from src.tasks.schemas import SortTasksValidator
 
 from .service import (create_task_service, delete_task_service,
@@ -41,15 +42,15 @@ def create_task(
 def get_tasks(
         session: DbSession,
         current_user: CurrentUser,
-        sort: SortTasksValidator,
+        sort_raw: list[SortTasksRule] = Query(default=[]),
         skip: int = Query(0, ge=0),
         limit: int = Query(100, ge=1, le=1000),
-
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
     try:
+        sort = SortTasksValidator(sort=sort_raw).sort
         tasks = get_tasks_service(session=session,
                                   current_user_id=current_user.id,
-                                  sort=sort.sort_tasks,
+                                  sort=sort,
                                   skip=skip,
                                   limit=limit)
         return {
