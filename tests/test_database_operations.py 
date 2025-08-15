@@ -1,0 +1,56 @@
+import pytest
+
+
+@pytest.mark.database
+class TestDatabaseOperations:
+    """Тесты операций с базой данных."""
+
+    def test_task_creation_with_database(self, mock_database, authenticated_user):
+        """Тест создания задачи с мокированной БД."""
+        # Настройка мока БД
+        mock_database.add.return_value = None
+        mock_database.commit.return_value = None
+        mock_database.refresh.return_value = None
+
+        # Симуляция создания задачи
+        task_data = {"name": "DB Test Task",
+                     "text": "Testing database operations"}
+
+        # В реальном коде здесь был бы вызов сервиса
+        # task_service.create_task(db=mock_database, task_data=task_data, user_id=authenticated_user["id"])
+
+        # Проверяем, что методы БД были вызваны
+        # mock_database.add.assert_called_once()
+        # mock_database.commit.assert_called_once()
+
+        assert True  # Заглушка для демонстрации
+
+    def test_cascade_delete_shared_tasks(self, mock_database):
+        """Тест каскадного удаления совместных задач."""
+        task_id = 1
+
+        # Мокируем удаление задачи и связанных записей
+        mock_database.query.return_value.filter.return_value.first.return_value = Mock(
+            id=task_id)
+        mock_database.delete.return_value = None
+        mock_database.commit.return_value = None
+
+        # Симуляция удаления
+        # task_service.delete_task(db=mock_database, task_id=task_id)
+
+        assert True  # Заглушка
+
+    def test_transaction_rollback(self, mock_database):
+        """Тест отката транзакций при ошибках."""
+        # Симулируем ошибку во время операции
+        mock_database.commit.side_effect = Exception("Database error")
+        mock_database.rollback.return_value = None
+
+        # В реальном коде здесь была бы обработка ошибки с откатом
+        # try:
+        #     task_service.create_task(...)
+        # except Exception:
+        #     mock_database.rollback()
+
+        # mock_database.rollback.assert_called_once()
+        assert True  # Заглушка

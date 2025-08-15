@@ -6,18 +6,18 @@ SortSharedTasksRule = Literal[
     "date_desc",
     "date_asc",
     "name",
-    "status_false_first",
-    "status_true_first",
-    "permission_view_first",
-    "permission_edit_first",
+    "status_asc",
+    "status_desc",
+    "permission_asc",
+    "permission_desc",
 ]
 
 shared_tasks_sort_mapping = {
     "date_desc": Task.date_time.desc(),
     "date_asc": Task.date_time.asc(),
     "name": Task.name.asc(),
-    "status_false_first": Task.completion_status.asc(),
-    "status_true_first": Task.completion_status.desc(),
-    "permission_view_first": Share.permission_level.asc(),
-    "permission_edit_first": Share.permission_level.desc(),
+    "status_asc": Task.completion_status.asc(),
+    "permission_desc": Task.completion_status.desc(),
+    "permission_asc": Share.permission_level.asc(),
+    "permission_desc": Share.permission_level.desc(),
 }

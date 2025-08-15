@@ -6,14 +6,14 @@ SortTasksRule = Literal[
     "date_desc",
     "date_asc",
     "name",
-    "status_false_first",
-    "status_true_first"
+    "status_asc",
+    "status_desc"
 ]
 
 tasks_sort_mapping = {
-    "date_desc": Task.date_time.desc(),
     "date_asc": Task.date_time.asc(),
+    "date_desc": Task.date_time.desc(),
     "name": Task.name.asc(),
-    "status_false_first": Task.completion_status.asc(),
-    "status_true_first": Task.completion_status.desc(),
+    "status_asc": Task.completion_status.asc(),
+    "status_desc": Task.completion_status.desc(),
 }

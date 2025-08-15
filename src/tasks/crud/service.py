@@ -6,6 +6,7 @@ from src.common.models import Task
 from src.common.utils import get_user_task, map_sort_rules
 from src.exceptions import TASK_NAME_REQUIRED, TASK_NOT_FOUND
 from src.tasks.helpers import tasks_sort_mapping
+from src.tasks.schemas import SortTasksValidator
 
 
 def create_task_service(
@@ -37,6 +38,8 @@ def get_tasks_service(
         skip: int,
         limit: int,
 ) -> list[Task]:
+    SortTasksValidator(sort=sort)
+    
     tasks_query = session.query(Task).filter(
         Task.user_id == current_user_id)
 

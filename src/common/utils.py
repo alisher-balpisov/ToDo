@@ -36,7 +36,7 @@ def is_task_owner(session, user_id: int, task_id: int) -> bool:
     ).one_or_none() is not None
 
 
-def map_sort_rules(sort: list, sort_mapping: dict[str, Any]) -> list:
+def map_sort_rules(sort: list, sort_mapping) -> list:
     return [sort_mapping[rule]
             for rule in sort
             if rule in sort_mapping]

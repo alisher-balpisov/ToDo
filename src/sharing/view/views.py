@@ -18,15 +18,15 @@ router = APIRouter()
 def get_shared_tasks(
         session: DbSession,
         current_user: CurrentUser,
-        sort_shared_tasks: list[SortSharedTasksRule] = Query(default=[]),
+        sort_shared_tasks: list[SortSharedTasksRule] = Query(default=[
+                                                             "date_desc"]),
         skip: int = Query(0, ge=0),
         limit: int = Query(100, ge=1, le=1000),
-
 ) -> list[dict]:
     try:
         tasks_info = get_shared_tasks_service(session=session,
                                               current_user_id=current_user.id,
-                                              sort_raw=sort_shared_tasks,
+                                              sort=sort_shared_tasks,
                                               skip=skip,
                                               limit=limit)
         return [
