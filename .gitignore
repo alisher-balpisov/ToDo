@@ -3,8 +3,9 @@ frontend
 .venv 
 uv.lock
 .pytest_cache
-__pycache__
 .python-version
 test.db 
  __pycache__/
 *.py[cod]
+*.pyc
+.DS_Store
