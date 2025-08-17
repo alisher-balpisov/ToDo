@@ -39,7 +39,7 @@ def get_tasks_service(
         limit: int,
 ) -> list[Task]:
     SortTasksValidator(sort=sort)
-    
+
     tasks_query = session.query(Task).filter(
         Task.user_id == current_user_id)
 
@@ -72,7 +72,7 @@ def update_task_service(
     try:
         task = get_user_task(session, current_user_id, task_id)
         if not task:
-            TASK_NOT_FOUND
+            raise TASK_NOT_FOUND
         task.name = name_update if name_update else task.name
         task.text = text_update if text_update else task.text
 

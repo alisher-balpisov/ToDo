@@ -25,7 +25,7 @@ def update_share_permission_service(
     if not target_user:
         raise USER_NOT_FOUND(target_username)
     share_record = get_share_record(
-        session, task_id, owner_id, target_user.id)
+        session, owner_id, target_user.id, task_id)
     if not share_record:
         raise TASK_NOT_SHARED_WITH_USER(target_username)
 

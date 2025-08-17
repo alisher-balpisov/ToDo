@@ -11,7 +11,7 @@ from src.tasks.file.views import router as tasks_file_router
 
 api_router = APIRouter()
 
-api_router.include_router(auth_router, prefix="/auth")
+api_router.include_router(auth_router)
 
 api_router.include_router(sharing_edit_router, prefix="/sharing")
 api_router.include_router(sharing_file_router, prefix="/sharing")

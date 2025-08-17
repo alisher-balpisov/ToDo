@@ -68,7 +68,7 @@ def toggle_task_completion_status(
                                                      current_user_id=current_user.id,
                                                      task_id=task_id)
         return {
-            "msg": f"Статус задачи изменен на {'выполнено' if task.completion_status else 'не выполнено'}",
+            "msg": "Статус задачи успешно изменён",
             "task_id": task.id,
             "new_status": task.completion_status,
         }

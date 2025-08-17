@@ -70,7 +70,7 @@ def get_tasks(
         handle_server_exception(e, "Ошибка сервера при выводе задач")
 
 
-@router.get("/{id}")
+@router.get("/{task_id}")
 def get_task(
         session: DbSession,
         current_user: CurrentUser,

@@ -4,10 +4,10 @@ from fastapi import UploadFile
 
 from src.common.models import Task
 from src.common.utils import get_user_task, validate_and_read_file
-from src.exceptions import FILE_NOT_FOUND, TASK_NOT_FOUND
+from src.exceptions import FILE_EMPTY, TASK_NOT_FOUND
 
 
-def upload_file_to_task_service(
+async def upload_file_to_task_service(
     session,
     current_user_id: int,
     uploaded_file: UploadFile,
@@ -17,7 +17,7 @@ def upload_file_to_task_service(
     if not task:
         raise TASK_NOT_FOUND
 
-    file_data = validate_and_read_file(uploaded_file)
+    file_data = await validate_and_read_file(uploaded_file)
     task.file_data = file_data
     task.file_name = uploaded_file.filename
     session.commit()
@@ -33,7 +33,7 @@ def get_task_file_service(
     if not task:
         raise TASK_NOT_FOUND
     if not task.file_data:
-        raise FILE_NOT_FOUND
+        raise FILE_EMPTY
 
     mime_type, _ = mimetypes.guess_type(task.file_name or "")
 

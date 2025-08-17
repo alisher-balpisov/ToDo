@@ -10,7 +10,7 @@ from src.core.database import DbSession
 from .models import ToDoUser, get_hash_password
 from .schemas import TokenDataSchema, UserRegisterSchema
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 
 def get_user_by_id(session, user_id: int) -> ToDoUser | None:

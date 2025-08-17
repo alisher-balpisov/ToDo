@@ -1,4 +1,5 @@
 from src.common.models import Task
+from src.core.database import DbSession
 
 from .models import Share, SharedAccessEnum
 
@@ -42,11 +43,11 @@ def get_share_record(
     ).one_or_none()
 
 
-def get_permission_level(session, current_user_id: int, task_id: int) -> SharedAccessEnum | None:
+def get_permission_level(session: DbSession, current_user_id: int, task_id: int) -> SharedAccessEnum | None:
     permission_level = session.query(Share.permission_level).filter(
         Share.task_id == task_id,
         Share.target_user_id == current_user_id
-    ).one_or_none()
+    ).scalar_one_or_none()
     if not permission_level:
         return None
     return permission_level

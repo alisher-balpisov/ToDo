@@ -1,7 +1,7 @@
 import secrets
 import string
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 from src.core.database import UsernameStr
 
@@ -54,12 +54,12 @@ class TokenDataSchema(BaseModel):
 
 class UserRegisterSchema(BaseModel):
     username: UsernameStr
-    password: str = ""
+    password: str | None = None
 
     @field_validator("password", mode="before")
     @classmethod
     def password_required(cls, v):
-        return v if isinstance(v, str) and v.strip() else generate_password()
+        return v if v and v.strip() else generate_password()
 
     @field_validator("password")
     @classmethod
@@ -70,17 +70,33 @@ class UserRegisterSchema(BaseModel):
 class UserPasswordUpdateSchema(BaseModel):
     current_password: str
     new_password: str
+    confirm_password: str
 
     @field_validator("new_password")
     @classmethod
     def validate_password(cls, v: str) -> str:
-        if not isinstance(v, str) or not v.strip():
+        if not v.strip():
             raise ValueError("Вы не ввели новый пароль")
         return validate_strong_password(v)
 
-    @field_validator("current_password", mode="before")
+    @field_validator("current_password")
     @classmethod
     def password_required(cls, v):
-        if not isinstance(v, str) or not v.strip():
+        if not v.strip():
             raise ValueError("Требуется текущий пароль")
         return v
+
+    @field_validator("confirm_password")
+    @classmethod
+    def validate_confirm_password(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("Подтвердите новый пароль")
+        return v
+
+    @model_validator(mode="after")
+    def check_passwords_match_and_not_same(self):
+        if self.new_password != self.confirm_password:
+            raise ValueError("Пароли не совпадают")
+        if self.new_password == self.current_password:
+            raise ValueError("Новый пароль не должен совпадать с текущим")
+        return self

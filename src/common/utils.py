@@ -1,12 +1,11 @@
+import os
 from typing import Any
 
 from fastapi import HTTPException, UploadFile, status
 
 from src.auth.models import ToDoUser
 from src.common.models import Task
-
-MAX_FILE_SIZE_MB = 20
-MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024
+from src.exceptions import FILE_EMPTY
 
 
 def get_task(session, task_id: int) -> Task:
@@ -42,12 +41,55 @@ def map_sort_rules(sort: list, sort_mapping) -> list:
             if rule in sort_mapping]
 
 
+ALLOWED_TYPES = {"image/png", "image/jpeg",
+                 "application/pdf"}
+
+ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg",
+                      ".pdf"}
+
+MAX_FILE_SIZE_MB = 20
+MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024
+
+
 async def validate_and_read_file(uploaded_file: UploadFile) -> bytes:
+    filename = uploaded_file.filename
+    if not filename:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=[{"msg": "Файл не имеет имени"}],
+        )
+
+    safe_filename = os.path.basename(filename.strip())
+    if safe_filename != filename.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=[{"msg": "Недопустимое имя файла"}],
+        )
+
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=[{"msg": f"Недопустимое расширение файла: {ext}"}],
+        )
+
+    if uploaded_file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail=[
+                {"msg": f"Недопустимый тип файла: {uploaded_file.content_type}"}],
+        )
+
     file_data = await uploaded_file.read()
+
+    if not file_data:
+        raise FILE_EMPTY
+
     if len(file_data) > MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=[
-                {"msg": "Размер файла превышает максимально допустимый (20MB)"}],
+                {"msg": f"Размер файла превышает максимально допустимый ({MAX_FILE_SIZE_MB}MB)"}],
         )
+
     return file_data

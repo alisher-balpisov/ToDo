@@ -10,9 +10,9 @@ TASK_NAME_REQUIRED = HTTPException(
     detail=[{"msg": "Имя задачи не задано"}]
 )
 
-FILE_NOT_FOUND = HTTPException(
-    status_code=status.HTTP_404_NOT_FOUND,
-    detail=[{"msg": "Файл не найден"}]
+FILE_EMPTY = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail=[{"msg": "файл пуст"}]
 )
 
 TASK_NOT_OWNED = HTTPException(

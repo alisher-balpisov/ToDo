@@ -123,7 +123,7 @@ def mock_file_system(temp_dir):
     return {
         "upload_dir": upload_dir,
         "allowed_extensions": {".txt", ".pdf", ".doc", ".docx", ".jpg", ".png"},
-        "max_file_size": 10 * 1024 * 1024  # 10MB
+        "max_file_size": 20 * 1024 * 1024  # 20MB
     }
 
 
