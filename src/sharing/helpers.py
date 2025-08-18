@@ -1,6 +1,8 @@
 from typing import Literal
 
-from .models import Share, Task
+from src.common.models import Task
+
+from .models import Share
 
 SortSharedTasksRule = Literal[
     "date_desc",

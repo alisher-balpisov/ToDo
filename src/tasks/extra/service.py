@@ -14,13 +14,12 @@ def search_tasks_service(
         return []
 
     search_pattern = f"%{search_query}%"
-    tasks = session.query(Task).filter(
+    tasks = (session.query(Task)
+             .filter(
         Task.user_id == current_user_id,
-        or_(
-            Task.name.ilike(search_pattern),
-            Task.text.ilike(search_pattern)
-        )
-    ).all()
+        or_(Task.name.ilike(search_pattern),
+            Task.text.ilike(search_pattern))
+    ).all())
 
     return tasks
 

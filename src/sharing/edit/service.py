@@ -4,8 +4,8 @@ from src.auth.service import get_user_by_username
 from src.common.schemas import TaskSchema
 from src.common.utils import is_task_owner
 from src.core.database import PrimaryKey
-from src.exceptions import (NO_EDIT_ACCESS, TASK_NOT_FOUND, TASK_NOT_OWNED,
-                            TASK_NOT_SHARED_WITH_USER, USER_NOT_FOUND)
+from src.exceptions import (NO_EDIT_ACCESS, TASK_NOT_FOUND, TASK_ACCESS_FORBIDDEN ,
+                            task_not_shared_with_user, user_not_found)
 from src.sharing.models import SharedAccessEnum
 from src.sharing.service import (get_permission_level, get_share_record,
                                  get_user_shared_task)
@@ -19,15 +19,15 @@ def update_share_permission_service(
         target_username: str
 ) -> None:
     if not is_task_owner(session, owner_id, task_id):
-        raise TASK_NOT_OWNED
+        raise TASK_ACCESS_FORBIDDEN
 
     target_user = get_user_by_username(session, target_username)
     if not target_user:
-        raise USER_NOT_FOUND(target_username)
+        raise user_not_found(target_username)
     share_record = get_share_record(
         session, owner_id, target_user.id, task_id)
     if not share_record:
-        raise TASK_NOT_SHARED_WITH_USER(target_username)
+        raise task_not_shared_with_user(target_username)
 
     if new_permission.value is share_record.permission_level:
         raise HTTPException(

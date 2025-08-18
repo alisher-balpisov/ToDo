@@ -15,10 +15,10 @@ def get_task(session, task_id: int) -> Task:
 
 
 def get_task_user(session, task_id: int) -> ToDoUser:
-    return session.query(ToDoUser).join(
-        Task, Task.user_id == ToDoUser.id).filter(
-        Task.id == task_id
-    ).one_or_none()
+    return (session.query(ToDoUser)
+            .join(Task, Task.user_id == ToDoUser.id)
+            .filter(Task.id == task_id)
+            .one_or_none())
 
 
 def get_user_task(session, user_id: int, task_id: int) -> Task:

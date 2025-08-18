@@ -15,13 +15,13 @@ FILE_EMPTY = HTTPException(
     detail=[{"msg": "файл пуст"}]
 )
 
-TASK_NOT_OWNED = HTTPException(
+TASK_ACCESS_FORBIDDEN = HTTPException(
     status_code=status.HTTP_403_FORBIDDEN,
     detail=[{"msg": "Задача не найдена или не принадлежит вам"}]
 )
 
 
-def USER_NOT_FOUND(username): return HTTPException(
+def user_not_found(username): return HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
     detail=[{"msg": f"Пользователь '{username}' не найден"}]
 )
@@ -33,13 +33,13 @@ NO_EDIT_ACCESS = HTTPException(
 )
 
 
-def TASK_ALREADY_SHARED(username): return HTTPException(
+def task_already_shared(username): return HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
     detail=[{"msg": f"Доступ к задаче уже предоставлен пользователю '{username}'"}]
 )
 
 
-def TASK_NOT_SHARED_WITH_USER(username): return HTTPException(
+def task_not_shared_with_user(username): return HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
     detail=[{"msg": f"Эта задача не расшарена с пользователем {username}"}]
 )

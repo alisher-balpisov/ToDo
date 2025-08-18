@@ -94,7 +94,7 @@ def get_task(
         handle_server_exception(e, "Ошибка сервера при получении задачи")
 
 
-@router.put("/{id}")
+@router.put("/{task_id}")
 def update_task(
         session: DbSession,
         current_user: CurrentUser,
@@ -121,7 +121,7 @@ def update_task(
         handle_server_exception(e, "Ошибка сервера при изменении задачи по id")
 
 
-@router.delete("/{id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{task_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_task(
         session: DbSession,
         current_user: CurrentUser,

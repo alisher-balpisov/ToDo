@@ -57,7 +57,7 @@ def get_tasks_stats(
         handle_server_exception(e, "Ошибка сервера при выводе статистики")
 
 
-@router.patch("/tasks/{task_id}")
+@router.patch("/{task_id}")
 def toggle_task_completion_status(
         session: DbSession,
         current_user: CurrentUser,

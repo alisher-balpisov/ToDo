@@ -12,6 +12,6 @@ class SortTasksValidator(BaseSortValidator):
     _sort_field: str = 'sort'  # указывает из какого поля брать список сортировок
 
     CONFLICTS: ClassVar = [
-        ("date_desc", "date_asc"),
-        ("status_false_first", "status_true_first"),
+        ("date_asc", "date_desc"),
+        ("status_asc", "status_desc"),
     ]

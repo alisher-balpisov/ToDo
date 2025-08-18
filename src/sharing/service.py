@@ -5,11 +5,12 @@ from .models import Share, SharedAccessEnum
 
 
 def get_user_shared_task(session, target_user_id: int, task_id: int) -> Task:
-    return session.query(Task).join(
-        Share, Share.task_id == Task.id).filter(
-        Task.id == task_id,
-        Share.target_user_id == target_user_id,
-    ).first()
+    return (session.query(Task)
+            .join(Share, Share.task_id == Task.id)
+            .filter(
+                Task.id == task_id,
+                Share.target_user_id == target_user_id)
+            .first())
 
 
 def is_already_shared(session, target_user_id: int, task_id: int) -> bool:
@@ -23,7 +24,7 @@ def is_sharing_with_self(owner_id: int, target_user_id: int) -> bool:
     return owner_id == target_user_id
 
 
-def is_collaborator(session, target_user_id, task_id):
+def is_task_collaborator(session, target_user_id, task_id):
     return session.query(Share).filter(
         Share.task_id == task_id,
         Share.target_user_id == target_user_id
@@ -47,7 +48,5 @@ def get_permission_level(session: DbSession, current_user_id: int, task_id: int)
     permission_level = session.query(Share.permission_level).filter(
         Share.task_id == task_id,
         Share.target_user_id == current_user_id
-    ).scalar_one_or_none()
-    if not permission_level:
-        return None
+    ).scalar()
     return permission_level

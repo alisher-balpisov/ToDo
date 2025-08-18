@@ -68,7 +68,7 @@ def change_password(
         current_user: CurrentUser,
         password_update: UserPasswordUpdateSchema,
 ):
-    if not current_user.verify_password(password_update.confirm_password):
+    if not current_user.verify_password(password_update.current_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=[{"msg": "Неверный текущий пароль"}],

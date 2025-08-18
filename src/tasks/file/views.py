@@ -21,10 +21,10 @@ async def upload_file_to_task(
 
 ):
     try:
-        upload_file_to_task_service(session=session,
-                                    current_user_id=current_user.id,
-                                    uploaded_file=uploaded_file,
-                                    task_id=task_id)
+        await upload_file_to_task_service(session=session,
+                                          current_user_id=current_user.id,
+                                          uploaded_file=uploaded_file,
+                                          task_id=task_id)
         return {"msg": "Файл успешно загружен"}
 
     except Exception as e:
