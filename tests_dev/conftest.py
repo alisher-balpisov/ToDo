@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from src.auth.schemas import UserRegisterSchema
-from src.auth.service import create
+from src.auth.service import get_user_by_username, register_service
 from src.core.database import Base, get_db
 from src.main import app
 from src.sharing.models import Share
@@ -72,7 +72,9 @@ def test_user(db_session):
         username="testuser",
         password="Password123"
     )
-    return create(session=db_session, user_in=user_data)
+    register_service(session=db_session,
+                     username=user_data.username, password=user_data.password)
+    return get_user_by_username(session=db_session, username=user_data.username)
 
 
 @pytest.fixture
@@ -82,7 +84,9 @@ def test_user2(db_session):
         username="testuser2",
         password="Password123"
     )
-    return create(session=db_session, user_in=user_data)
+    register_service(session=db_session,
+                     username=user_data.username, password=user_data.password)
+    return get_user_by_username(session=db_session, username=user_data.username)
 
 
 @pytest.fixture

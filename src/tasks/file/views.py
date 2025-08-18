@@ -1,6 +1,6 @@
 from io import BytesIO
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 
 from src.auth.service import CurrentUser
@@ -26,7 +26,9 @@ async def upload_file_to_task(
                                           uploaded_file=uploaded_file,
                                           task_id=task_id)
         return {"msg": "Файл успешно загружен"}
-
+    except HTTPException:
+        session.rollback()
+        raise
     except Exception as e:
         session.rollback()
         handle_server_exception(e, "Ошибка сервера при загрузке файла")

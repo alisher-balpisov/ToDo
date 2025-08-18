@@ -19,7 +19,7 @@ def search_tasks_service(
     if len(search_query) > MAX_SEARCH_QUERY:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=[{"Слишком длинный поисковый запрос"}]
+            detail=[{"msg": "Слишком длинный поисковый запрос"}]
         )
     search_pattern = f"%{search_query.strip()}%"
     tasks = (session.query(Task)

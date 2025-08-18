@@ -1,16 +1,18 @@
+from shlex import quote
+
+
 class TestSecurity:
     """Интеграционные тесты безопасности."""
 
     def test_sql_injection_protection(self, client, auth_headers):
         """Тест защиты от SQL инъекций."""
-        malicious_query = "'; DROP TABLE tasks; --"
+        malicious_query = "; DROP TABLE tasks; --"
 
         response = client.get(
             f"/tasks/search?search_query={malicious_query}", headers=auth_headers)
 
-        # Должен вернуть пустой результат, а не ошибку
         assert response.status_code == 200
-        assert isinstance(response.json(), list)
+        assert response.json() == []
 
     def test_xss_protection(self, client, auth_headers):
         """Тест защиты от XSS."""

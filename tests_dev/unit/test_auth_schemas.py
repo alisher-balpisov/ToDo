@@ -3,6 +3,7 @@ from pydantic import ValidationError
 
 from src.auth.schemas import (UserPasswordUpdateSchema, UserRegisterSchema,
                               generate_password, validate_strong_password)
+from src.constants import LENGTH_GENERATED_PASSWORD
 
 
 class TestUserRegisterSchema:
@@ -22,7 +23,7 @@ class TestUserRegisterSchema:
 
     def test_password_validation_too_short(self):
         """Тест валидации короткого пароля."""
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             UserRegisterSchema(username="testuser", password="123")
 
         assert "Длина пароля должна быть не менее 8 символов" in str(
@@ -30,28 +31,28 @@ class TestUserRegisterSchema:
 
     def test_password_validation_no_uppercase(self):
         """Тест валидации пароля без заглавных букв."""
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             UserRegisterSchema(username="testuser", password="password123")
 
         assert "заглавную букву" in str(exc_info.value)
 
     def test_password_validation_no_lowercase(self):
         """Тест валидации пароля без строчных букв."""
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             UserRegisterSchema(username="testuser", password="PASSWORD123")
 
         assert "строчную букву" in str(exc_info.value)
 
     def test_password_validation_no_digit(self):
         """Тест валидации пароля без цифр."""
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             UserRegisterSchema(username="testuser", password="Password")
 
         assert "цифру" in str(exc_info.value)
 
     def test_password_validation_with_spaces(self):
         """Тест валидации пароля с пробелами."""
-        with pytest.raises(ValidationError) as exc_info:
+        with pytest.raises(ValueError) as exc_info:
             UserRegisterSchema(username="testuser", password="Password 123")
 
         assert "пробелы" in str(exc_info.value)
@@ -125,7 +126,7 @@ class TestPasswordGeneration:
         """Тест генерации пароля стандартной длины."""
         password = generate_password()
 
-        assert len(password) == 10
+        assert len(password) == LENGTH_GENERATED_PASSWORD
         assert any(c.islower() for c in password)
         assert any(c.isupper() for c in password)
         assert sum(c.isdigit() for c in password) >= 3

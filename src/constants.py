@@ -1,6 +1,6 @@
 # FileConstants:
-ALLOWED_TYPES = {"image/png", "image/jpeg", "application/pdf"}
-ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".pdf"}
+ALLOWED_TYPES = {"image/png", "image/jpeg", "application/pdf", "text/plain"}
+ALLOWED_EXTENSIONS = {".txt", ".png", ".jpg", ".jpeg", ".pdf"}
 MAX_FILE_SIZE_MB = 20
 MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024
 

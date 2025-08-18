@@ -1,6 +1,6 @@
 import pytest
 
-from src.exceptions import TASK_ALREADY_SHARED, TASK_NOT_OWNED, USER_NOT_FOUND
+from src.exceptions import task_already_shared
 from src.sharing.models import SharedAccessEnum
 from src.sharing.service import (get_permission_level, get_share_record,
                                  get_user_shared_task, is_already_shared,
@@ -82,7 +82,7 @@ class TestSharingService:
                 permission_level=SharedAccessEnum.view
             )
 
-        expected_exc = TASK_ALREADY_SHARED(test_user2.username)
+        expected_exc = task_already_shared(test_user2.username)
         assert exc_info.value.status_code == expected_exc.status_code
         assert exc_info.value.detail == expected_exc.detail
 

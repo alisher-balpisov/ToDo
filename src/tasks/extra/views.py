@@ -17,9 +17,9 @@ def search_tasks(
         session: DbSession,
         current_user: CurrentUser,
         search_query: str,
-
 ) -> list[dict[str, Any]]:
     try:
+        print(search_query, "<- query")
         tasks = search_tasks_service(session=session,
                                      current_user_id=current_user.id,
                                      search_query=search_query)

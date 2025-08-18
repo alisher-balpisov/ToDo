@@ -45,13 +45,7 @@ def get_share_record(
 
 
 def get_permission_level(session, current_user_id: int, task_id: int) -> SharedAccessEnum | None:
-    permission_level = session.query(Share.permission_level).filter(
+    return session.query(Share.permission_level).filter(
         Share.task_id == task_id,
         Share.target_user_id == current_user_id
     ).scalar()
-<<<<<<< HEAD
-=======
-    if not permission_level:
-        return None
->>>>>>> db16824 (tests_dev)
-    return permission_level

@@ -56,7 +56,6 @@ class TokenDataSchema(BaseModel):
 
 
 class UserRegisterSchema(BaseModel):
-<<<<<<< HEAD
     username: str
     password: str | None = None
     is_password_generated: bool = False
@@ -68,20 +67,6 @@ class UserRegisterSchema(BaseModel):
             object.__setattr__(self, "is_password_generated", True)
         else:
             validate_strong_password(self.password)
-=======
-    username: UsernameStr
-    password: str = Field(default_factory=generate_password)
-
-    @field_validator("password", mode="after")
-    @classmethod
-    def password_required(cls, v):
-        return v if v and v.strip() else generate_password()
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v: str) -> str:
-        return validate_strong_password(v)
->>>>>>> db16824 (tests_dev)
 
 
 class UserPasswordUpdateSchema(BaseModel):
