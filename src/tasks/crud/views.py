@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 
 from src.auth.service import CurrentUser
 from src.common.schemas import TaskSchema

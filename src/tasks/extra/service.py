@@ -1,7 +1,11 @@
+from http.client import HTTPException
+
+from fastapi import status
 from sqlalchemy import or_
 
 from src.common.models import Task
 from src.common.utils import get_user_task
+from src.constants import MAX_SEARCH_QUERY, STATS_PERCENTAGE_PRECISION
 from src.exceptions import TASK_NOT_FOUND
 
 
@@ -10,10 +14,14 @@ def search_tasks_service(
         current_user_id: int,
         search_query: str,
 ) -> list[Task]:
-    if not search_query:
+    if not search_query or not search_query.strip():
         return []
-
-    search_pattern = f"%{search_query}%"
+    if len(search_query) > MAX_SEARCH_QUERY:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=[{"Слишком длинный поисковый запрос"}]
+        )
+    search_pattern = f"%{search_query.strip()}%"
     tasks = (session.query(Task)
              .filter(
         Task.user_id == current_user_id,
@@ -34,7 +42,7 @@ def get_tasks_stats_service(
     completed = int(query.filter(Task.completion_status).count())
     uncompleted = int(query.filter(Task.completion_status.is_(False)).count())
     completion_percentage = round(
-        (completed / total) * 100 if total > 0 else 0, 2)
+        (completed / total) * 100 if total > 0 else 0, STATS_PERCENTAGE_PRECISION)
 
     return total, completed, uncompleted, completion_percentage
 

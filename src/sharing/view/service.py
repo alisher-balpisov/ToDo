@@ -1,13 +1,11 @@
-from fastapi import HTTPException, Query, status
-
 from src.auth.models import ToDoUser
 from src.auth.service import get_user_by_id
-from src.common.utils import (get_task, get_task_user, get_user_task,
-                              is_task_owner, map_sort_rules)
-from src.core.database import DbSession
+from src.common.models import Task
+from src.common.utils import (get_task, get_task_user, is_task_owner,
+                              map_sort_rules)
 from src.exceptions import LIST_EMPTY, TASK_ACCESS_FORBIDDEN, TASK_NOT_FOUND
 from src.sharing.helpers import SortSharedTasksRule, shared_tasks_sort_mapping
-from src.sharing.models import Share, SharedAccessEnum, Task
+from src.sharing.models import Share, SharedAccessEnum
 from src.sharing.schemas import SortSharedTasksValidator
 from src.sharing.service import (get_permission_level, get_user_shared_task,
                                  is_task_collaborator)
@@ -17,8 +15,8 @@ def get_shared_tasks_service(
     session,
     current_user_id: int,
     sort: list[SortSharedTasksRule],
-    skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    skip: int,
+    limit: int,
 ) -> list[tuple]:
     SortSharedTasksValidator(sort=sort)
 
@@ -57,7 +55,7 @@ def get_shared_task_service(
 
 
 def get_task_collaborators_service(
-        session: DbSession,
+        session,
         current_user_id: int,
         task_id: int,
 ) -> list[dict]:

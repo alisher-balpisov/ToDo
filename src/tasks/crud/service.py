@@ -1,7 +1,5 @@
 from datetime import datetime, timezone
 
-from fastapi import HTTPException
-
 from src.common.models import Task
 from src.common.utils import get_user_task, map_sort_rules
 from src.exceptions import TASK_NAME_REQUIRED, TASK_NOT_FOUND
@@ -68,27 +66,23 @@ def update_task_service(
         task_id: int,
         name_update: str | None,
         text_update: str | None
-):
-    try:
-        task = get_user_task(session, current_user_id, task_id)
-        if not task:
-            raise TASK_NOT_FOUND
-        task.name = name_update if name_update else task.name
-        task.text = text_update if text_update else task.text
+) -> Task:
+    task = get_user_task(session, current_user_id, task_id)
+    if not task:
+        raise TASK_NOT_FOUND
+    task.name = name_update if name_update else task.name
+    task.text = text_update if text_update else task.text
 
-        session.commit()
-        session.refresh(task)
-        return task
-    except HTTPException:
-        session.rollback()
-        raise
+    session.commit()
+    session.refresh(task)
+    return task
 
 
 def delete_task_service(
         session,
         current_user_id: int,
         task_id: int
-):
+) -> None:
     task = get_user_task(session, current_user_id, task_id)
     if not task:
         raise TASK_NOT_FOUND

@@ -4,6 +4,7 @@ from fastapi import UploadFile
 
 from src.common.models import Task
 from src.common.utils import get_user_task, validate_and_read_file
+from src.constants import CONTENT_TYPE_OCTET_STREAM
 from src.exceptions import FILE_EMPTY, TASK_NOT_FOUND
 
 
@@ -37,4 +38,4 @@ def get_task_file_service(
 
     mime_type, _ = mimetypes.guess_type(task.file_name or "")
 
-    return task, mime_type or "application/octet-stream"
+    return task, mime_type or CONTENT_TYPE_OCTET_STREAM

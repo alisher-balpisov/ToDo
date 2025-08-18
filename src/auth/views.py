@@ -7,37 +7,29 @@ from src.auth.schemas import (TokenSchema, UserPasswordUpdateSchema,
                               UserRegisterSchema)
 from src.core.database import DbSession
 
-from .service import CurrentUser, create, get_user_by_username
+from .service import CurrentUser, get_user_by_username, register_service
 
 router = APIRouter()
 
 
 @router.post("/register")
-def register_user(
+def register(
         session: DbSession,
         user_in: UserRegisterSchema,
-):
-
-    user = get_user_by_username(session=session, username=user_in.username)
-    if user:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=[
-                {
-                    "msg": "Пользователь с таким username уже существует.",
-                    "loc": ["username"],
-                    "type": "value_error",
-                }
-            ],
-        )
-    user = create(session=session, user_in=user_in)
-    return {'msg': "Регистрация пройдена успешно",
-            'username': user_in.username,
-            'password': user_in.password}
+) :
+    register_service(session=session,
+                     username=user_in.username,
+                     password=user_in.password)
+    return {
+        "msg": "Регистрация пройдена успешно",
+        "username": user_in.username,
+        "password": user_in.password,
+        "is_password_generated": user_in.is_password_generated
+    }
 
 
 @router.post("/login")
-async def login_user(
+async def login(
         session: DbSession,
         user_in: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> TokenSchema:

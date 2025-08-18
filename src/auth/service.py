@@ -8,7 +8,7 @@ from src.core.config import TODO_JWT_ALG, TODO_JWT_SECRET
 from src.core.database import DbSession
 
 from .models import ToDoUser, get_hash_password
-from .schemas import TokenDataSchema, UserRegisterSchema
+from .schemas import TokenDataSchema
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
@@ -28,18 +28,28 @@ def get_user_by_email(session, email: str) -> ToDoUser | None:
     return session.query(ToDoUser).filter(ToDoUser.email == email).one_or_none()
 
 
-def create(*, session, user_in: UserRegisterSchema) -> ToDoUser:
+def register_service(*, session, username: str, password: str) -> ToDoUser:
     """Создает нового пользователя ToDoUser."""
-    # pydantic вводит строковый пароль, но нам нужны байты
-    password = get_hash_password(user_in.password)
+    user = get_user_by_username(session=session, username=username)
+    if user:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=[
+                {
+                    "msg": "Пользователь с таким username уже существует.",
+                    "loc": ["username"],
+                    "type": "value_error",
+                }
+            ],
+        )
+    hashed_password = get_hash_password(password)
 
-    user = ToDoUser(
-        **user_in.model_dump(exclude={"password"}),
-        password=password,
+    new_user = ToDoUser(
+        username=username,
+        password=hashed_password
     )
-    session.add(user)
+    session.add(new_user)
     session.commit()
-    return user
 
 
 def credentials_exception():

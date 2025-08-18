@@ -24,11 +24,11 @@ def is_sharing_with_self(owner_id: int, target_user_id: int) -> bool:
     return owner_id == target_user_id
 
 
-def is_task_collaborator(session, target_user_id, task_id):
+def is_task_collaborator(session, target_user_id, task_id) -> bool:
     return session.query(Share).filter(
         Share.task_id == task_id,
         Share.target_user_id == target_user_id
-    ).first()
+    ).one_or_none() is not None
 
 
 def get_share_record(
@@ -44,7 +44,7 @@ def get_share_record(
     ).one_or_none()
 
 
-def get_permission_level(session: DbSession, current_user_id: int, task_id: int) -> SharedAccessEnum | None:
+def get_permission_level(session, current_user_id: int, task_id: int) -> SharedAccessEnum | None:
     permission_level = session.query(Share.permission_level).filter(
         Share.task_id == task_id,
         Share.target_user_id == current_user_id

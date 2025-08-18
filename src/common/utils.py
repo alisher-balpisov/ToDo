@@ -1,10 +1,10 @@
 import os
-from typing import Any
 
 from fastapi import HTTPException, UploadFile, status
 
 from src.auth.models import ToDoUser
 from src.common.models import Task
+from src.constants import ALLOWED_EXTENSIONS, ALLOWED_TYPES, MAX_FILE_SIZE
 from src.exceptions import FILE_EMPTY
 
 
@@ -39,16 +39,6 @@ def map_sort_rules(sort: list, sort_mapping) -> list:
     return [sort_mapping[rule]
             for rule in sort
             if rule in sort_mapping]
-
-
-ALLOWED_TYPES = {"image/png", "image/jpeg",
-                 "application/pdf"}
-
-ALLOWED_EXTENSIONS = {".png", ".jpg", ".jpeg",
-                      ".pdf"}
-
-MAX_FILE_SIZE_MB = 20
-MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024
 
 
 async def validate_and_read_file(uploaded_file: UploadFile) -> bytes:

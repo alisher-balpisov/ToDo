@@ -15,8 +15,7 @@ class Task(Base):
     user_id = Column(Integer, index=True)
     text = Column(Text)
     completion_status = Column(Boolean, default=False, index=True)
-    date_time = Column(DateTime, default=datetime.now(
-        timezone.utc).astimezone())
-
+    date_time = Column(DateTime,
+                       default=lambda: datetime.now(timezone.utc))
     file_data = Column(LargeBinary, nullable=True, default=None)
     file_name = Column(String, nullable=True, default=None)

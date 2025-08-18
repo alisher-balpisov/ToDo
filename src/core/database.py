@@ -28,10 +28,11 @@ UsernameStr = Annotated[str, AfterValidator(
 UploadedFile = Annotated[UploadFile, File()]
 
 
-def resolve_table_name(name):
-    """Преобразует имена таблиц в их сопоставленные имена."""
-    names = re.split("(?=[A-Z])", name)  # noqa
-    return "_".join([x.lower() for x in names if x])
+def resolve_table_name(name: str) -> str:
+    """Преобразует CamelCase / PascalCase имя в snake_case (для таблиц)."""
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    s2 = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1)
+    return s2.lower()
 
 
 class Base(DeclarativeBase):

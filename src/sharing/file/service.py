@@ -4,6 +4,7 @@ from fastapi import HTTPException, UploadFile, status
 
 from src.common.models import Task
 from src.common.utils import validate_and_read_file
+from src.constants import CONTENT_TYPE_OCTET_STREAM
 from src.exceptions import FILE_EMPTY, TASK_NOT_FOUND
 from src.sharing.models import SharedAccessEnum
 from src.sharing.service import get_permission_level, get_user_shared_task
@@ -44,4 +45,4 @@ def get_shared_task_file_service(
 
     mime_type, _ = mimetypes.guess_type(task.file_name or "")
 
-    return task, mime_type or "application/octet-stream"
+    return task, mime_type or CONTENT_TYPE_OCTET_STREAM

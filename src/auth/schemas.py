@@ -3,10 +3,11 @@ import string
 
 from pydantic import BaseModel, field_validator, model_validator
 
+from src.constants import LENGTH_GENERATED_PASSWORD
 from src.core.database import UsernameStr
 
 
-def generate_password(length: int = 10) -> str:
+def generate_password(length: int = LENGTH_GENERATED_PASSWORD) -> str:
     """
     Сгенерируйте случайный надежный пароль,
     состоящий как минимум из одной строчной буквы,
@@ -53,18 +54,17 @@ class TokenDataSchema(BaseModel):
 
 
 class UserRegisterSchema(BaseModel):
-    username: UsernameStr
+    username: str
     password: str | None = None
+    is_password_generated: bool = False
 
-    @field_validator("password", mode="before")
-    @classmethod
-    def password_required(cls, v):
-        return v if v and v.strip() else generate_password()
-
-    @field_validator("password")
-    @classmethod
-    def validate_password(cls, v: str) -> str:
-        return validate_strong_password(v)
+    def __init__(self, **data):
+        super().__init__(**data)
+        if not self.password or not self.password.strip():
+            object.__setattr__(self, "password", generate_password())
+            object.__setattr__(self, "is_password_generated", True)
+        else:
+            validate_strong_password(self.password)
 
 
 class UserPasswordUpdateSchema(BaseModel):
