@@ -47,7 +47,7 @@ def get_permission_level(session: DbSession, current_user_id: int, task_id: int)
     permission_level = session.query(Share.permission_level).filter(
         Share.task_id == task_id,
         Share.target_user_id == current_user_id
-    ).scalar_one_or_none()
+    ).scalar()
     if not permission_level:
         return None
     return permission_level

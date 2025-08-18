@@ -17,17 +17,17 @@ class DatabaseCredentials:
         return f"{self.username}:{self.password}"
 
 
-TODO_JWT_SECRET = config("TODO_JWT_SECRET", default=None)
+TODO_JWT_SECRET = config("TODO_JWT_SECRET", default="SECRET")
 TODO_JWT_ALG = config("TODO_JWT_ALG", default="HS256")
 TODO_JWT_EXP = config("TODO_JWT_EXP", cast=int, default=60)  # minuts
 
 
-DATABASE_HOSTNAME = config("DATABASE_HOSTNAME")
+DATABASE_HOSTNAME = config("DATABASE_HOSTNAME", default="localhost")
 # .env → DATABASE_CREDENTIALS=username:password
-DATABASE_CREDENTIALS = config("DATABASE_CREDENTIALS", cast=DatabaseCredentials)
+DATABASE_CREDENTIALS = config("DATABASE_CREDENTIALS", cast=DatabaseCredentials, default="postgres:200614")
 _DATABASE_USER, _DATABASE_PASSWORD = str(DATABASE_CREDENTIALS).split(":")
 
-DATABASE_NAME = config("DATABASE_NAME")
+DATABASE_NAME = config("DATABASE_NAME", default="base_db")
 DATABASE_PORT = config("DATABASE_PORT", default="5432")
 
 

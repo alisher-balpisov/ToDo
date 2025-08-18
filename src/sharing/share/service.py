@@ -24,7 +24,7 @@ def share_task_service(
     if not target_user:
         raise USER_NOT_FOUND(target_username)
 
-    if is_sharing_with_self(owner_id, target_user):
+    if is_sharing_with_self(owner_id, target_user.id):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=[{"msg": "Нельзя делиться задачей с самим собой"}]

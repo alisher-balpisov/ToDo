@@ -20,7 +20,7 @@ class ToDoUser(Base):
     id = Column(Integer, primary_key=True)
     username = Column(String, unique=True, index=True)
     email = Column(String, unique=True)
-    password = Column(LargeBinary, nullable=True)
+    password = Column(LargeBinary, nullable=False)
     disabled = Column(Boolean, default=False)
 
     def verify_password(self, password: str) -> bool:

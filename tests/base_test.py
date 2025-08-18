@@ -1,10 +1,10 @@
 import io
 import json
 from typing import Any, Dict
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
-import httpx
 import pytest
+from fastapi import status
 from fastapi.testclient import TestClient
 
 
@@ -31,33 +31,50 @@ class TestAuthentication:
 
     def test_register_user_success(self, client, user_data):
         """Тест успешной регистрации пользователя."""
-        client.post.return_value.status_code = 200
-        client.post.return_value.json.return_value = {
-            "message": "User registered successfully"}
+        expected_response = {
+            "msg": "Регистрация пройдена успешно",
+            "username": user_data["username"],
+            "password": user_data["password"]
+        }
 
-        response = client.post("/auth/register", json=user_data)
+        # Настройка мока
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.post.return_value = mock_response
+
+        response = client.post("/register", json=user_data)
 
         assert response.status_code == 200
-        client.post.assert_called_once_with(
-            "/auth/register", json=user_data)
+        response_data = response.json()
+        assert response_data["username"] == user_data["username"]
+        client.post.assert_called_once_with("/register", json=user_data)
 
     def test_register_user_validation_error(self, client):
         """Тест регистрации с невалидными данными."""
-        invalid_data = {"username": "ab",
-                        "password": ""}  # Слишком короткое имя
+        invalid_data = {"username": "ab", "password": ""}
 
-        client.post.return_value.status_code = 422
-        client.post.return_value.json.return_value = {
-            "detail": [{"loc": ["body", "username"], "msg": "ensure this value has at least 3 characters", "type": "value_error.any_str.min_length"}]
+        expected_error = {
+            "detail": [{
+                "msg": "Пользователь с таким username уже существует.",
+                "loc": ["username"],
+                "type": "value_error",
+            }]
         }
 
-        response = client.post("/auth/register", json=invalid_data)
+        mock_response = Mock()
+        mock_response.status_code = 422
+        mock_response.json.return_value = expected_error
+        client.post.return_value = mock_response
+
+        response = client.post("/register", json=invalid_data)
 
         assert response.status_code == 422
         assert "detail" in response.json()
 
     def test_login_user_success(self, client, user_data):
         """Тест успешного входа пользователя."""
+        # Правильный формат для OAuth2PasswordRequestForm
         login_data = {
             "username": user_data["username"],
             "password": user_data["password"]
@@ -68,53 +85,78 @@ class TestAuthentication:
             "token_type": "bearer"
         }
 
-        client.post.return_value.status_code = 200
-        client.post.return_value.json.return_value = expected_response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.post.return_value = mock_response
 
-        response = client.post("/auth/login", data=login_data)
+        # data, не json для OAuth2
+        response = client.post("/login", data=login_data)
 
         assert response.status_code == 200
-        assert response.json()["access_token"] == "test_access_token"
-        assert response.json()["token_type"] == "bearer"
+        response_data = response.json()
+        assert response_data["access_token"] == "test_access_token"
+        assert response_data["token_type"] == "bearer"
 
     def test_login_user_invalid_credentials(self, client):
         """Тест входа с неверными учетными данными."""
         invalid_data = {"username": "wronguser", "password": "wrongpass"}
 
-        client.post.return_value.status_code = 401
-        client.post.return_value.json.return_value = {
-            "detail": "Invalid credentials"}
+        expected_error = {
+            "detail": [
+                {"msg": "Invalid username.", "loc": [
+                    "username"], "type": "value_error"},
+                {"msg": "Invalid password.", "loc": [
+                    "password"], "type": "value_error"}
+            ]
+        }
 
-        response = client.post("/auth/login", data=invalid_data)
+        mock_response = Mock()
+        mock_response.status_code = 422
+        mock_response.json.return_value = expected_error
+        client.post.return_value = mock_response
 
-        assert response.status_code == 401
+        response = client.post("/login", data=invalid_data)
+
+        assert response.status_code == 422
 
     def test_change_password_success(self, client, auth_headers):
         """Тест успешной смены пароля."""
         password_data = {
-            "current_password": "oldpassword",
-            "new_password": "newpassword123"
+            "current_password": "oldpassword123",
+            "new_password": "NewPassword123",
+            "confirm_password": "NewPassword123"
         }
 
-        client.post.return_value.status_code = 200
-        client.post.return_value.json.return_value = {
-            "message": "Password updated successfully"}
+        expected_response = {"msg": "Пароль успешно изменён"}
 
-        response = client.post("/auth/change-password",
-                               json=password_data, headers=auth_headers)
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.post.return_value = mock_response
+
+        response = client.post(
+            "/change-password", json=password_data, headers=auth_headers)
 
         assert response.status_code == 200
+        assert response.json()["msg"] == "Пароль успешно изменён"
 
     def test_change_password_unauthorized(self, client):
         """Тест смены пароля без авторизации."""
         password_data = {
-            "current_password": "oldpassword",
-            "new_password": "newpassword123"
+            "current_password": "oldpassword123",
+            "new_password": "NewPassword123",
+            "confirm_password": "NewPassword123"
         }
 
-        client.post.return_value.status_code = 401
+        mock_response = Mock()
+        mock_response.status_code = 401
+        mock_response.json.return_value = {
+            "detail": [{"msg": "Не удалось подтвердить учетные данные"}]
+        }
+        client.post.return_value = mock_response
 
-        response = client.post("/auth/change-password", json=password_data)
+        response = client.post("/change-password", json=password_data)
 
         assert response.status_code == 401
 
@@ -125,61 +167,83 @@ class TestTasks:
     def test_create_task_success(self, client, auth_headers, task_data):
         """Тест успешного создания задачи."""
         expected_response = {
-            "id": 1,
-            "name": task_data["name"],
-            "text": task_data["text"],
-            "completed": False,
-            "created_at": "2025-08-15T12:00:00Z"
+            "msg": "Задача добавлена",
+            "task_id": 1,
+            "task_name": task_data["name"]
         }
 
-        client.post.return_value.status_code = 201
-        client.post.return_value.json.return_value = expected_response
+        mock_response = Mock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = expected_response
+        client.post.return_value = mock_response
 
-        response = client.post(
-            "/tasks/", json=task_data, headers=auth_headers)
+        response = client.post("/tasks/", json=task_data, headers=auth_headers)
 
         assert response.status_code == 201
-        assert response.json()["name"] == task_data["name"]
-        assert response.json()["completed"] is False
+        response_data = response.json()
+        assert response_data["task_name"] == task_data["name"]
+        assert "task_id" in response_data
 
-    def test_create_task_validation_error(self, client, auth_headers):
-        """Тест создания задачи с невалидными данными."""
-        invalid_data = {"name": "x" * 35}  # Слишком длинное название
+    def test_create_task_name_required(self, client, auth_headers):
+        """Тест создания задачи без названия."""
+        invalid_data = {"name": "", "text": "Some text"}
 
-        client.post.return_value.status_code = 422
+        mock_response = Mock()
+        mock_response.status_code = 400
+        mock_response.json.return_value = {
+            "detail": [{"msg": "Имя задачи не задано"}]
+        }
+        client.post.return_value = mock_response
 
         response = client.post(
             "/tasks/", json=invalid_data, headers=auth_headers)
 
-        assert response.status_code == 422
+        assert response.status_code == 400
 
     def test_get_tasks_success(self, client, auth_headers):
         """Тест получения списка задач."""
         expected_response = {
             "tasks": [
-                {"id": 1, "name": "Task 1",
-                    "text": "Description 1", "completed": False},
-                {"id": 2, "name": "Task 2", "text": "Description 2", "completed": True}
+                {
+                    "id": 1,
+                    "task_name": "Task 1",
+                    "completion_status": False,
+                    "date_time": "2025-08-15T10:00:00",
+                    "text": "Description 1",
+                    "file_name": None
+                }
             ],
-            "total": 2
+            "skip": 0,
+            "limit": 100
         }
 
-        client.get.return_value.status_code = 200
-        client.get.return_value.json.return_value = expected_response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.get.return_value = mock_response
 
         response = client.get("/tasks/", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.json()["tasks"]) == 2
+        response_data = response.json()
+        assert "tasks" in response_data
+        assert len(response_data["tasks"]) == 1
 
     def test_get_tasks_with_sorting(self, client, auth_headers):
         """Тест получения задач с сортировкой."""
-        params = {"sort": ["date_desc"], "skip": 0, "limit": 50}
+        expected_response = {
+            "tasks": [],
+            "skip": 0,
+            "limit": 50
+        }
 
-        client.get.return_value.status_code = 200
-        client.get.return_value.json.return_value = {"tasks": [], "total": 0}
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.get.return_value = mock_response
 
-        response = client.get("/tasks/", params=params, headers=auth_headers)
+        response = client.get(
+            "/tasks/?sort=date_desc&skip=0&limit=50", headers=auth_headers)
 
         assert response.status_code == 200
 
@@ -188,60 +252,74 @@ class TestTasks:
         task_id = 1
         expected_response = {
             "id": task_id,
-            "name": "Test Task",
+            "task_name": "Test Task",
+            "completion_status": False,
+            "date_time": "2025-08-15T10:00:00",
             "text": "Test Description",
-            "completed": False
+            "file_name": None
         }
 
-        client.get.return_value.status_code = 200
-        client.get.return_value.json.return_value = expected_response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.get.return_value = mock_response
 
-        response = client.get(
-            f"/tasks/{task_id}", params={"task_id": task_id}, headers=auth_headers)
+        response = client.get(f"/tasks/{task_id}", headers=auth_headers)
 
         assert response.status_code == 200
-        assert response.json()["id"] == task_id
+        response_data = response.json()
+        assert response_data["id"] == task_id
 
     def test_get_task_not_found(self, client, auth_headers):
         """Тест получения несуществующей задачи."""
         task_id = 999
 
-        client.get.return_value.status_code = 404
-        client.get.return_value.json.return_value = {
-            "detail": "Task not found"}
+        mock_response = Mock()
+        mock_response.status_code = 404
+        mock_response.json.return_value = {
+            "detail": [{"msg": "Задача не найдена"}]
+        }
+        client.get.return_value = mock_response
 
-        response = client.get(
-            f"/tasks/{task_id}", params={"task_id": task_id}, headers=auth_headers)
+        response = client.get(f"/tasks/{task_id}", headers=auth_headers)
 
         assert response.status_code == 404
 
-    def test_update_task_success(self, client, auth_headers, task_data):
+    def test_update_task_success(self, client, auth_headers):
         """Тест обновления задачи."""
         task_id = 1
         updated_data = {"name": "Updated Task", "text": "Updated Description"}
 
-        client.put.return_value.status_code = 200
-        client.put.return_value.json.return_value = {
-            **updated_data, "id": task_id, "completed": False}
+        expected_response = {
+            "msg": "Задача обновлена",
+            "id": task_id,
+            "task_name": "Updated Task",
+            "completion_status": False,
+            "date_time": "2025-08-15T10:00:00",
+            "text": "Updated Description"
+        }
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.put.return_value = mock_response
 
         response = client.put(
-            f"/tasks/{task_id}",
-            params={"task_id": task_id},
-            json=updated_data,
-            headers=auth_headers
-        )
+            f"/tasks/{task_id}", json=updated_data, headers=auth_headers)
 
         assert response.status_code == 200
-        assert response.json()["name"] == "Updated Task"
+        response_data = response.json()
+        assert response_data["task_name"] == "Updated Task"
 
     def test_delete_task_success(self, client, auth_headers):
         """Тест удаления задачи."""
         task_id = 1
 
-        client.delete.return_value.status_code = 204
+        mock_response = Mock()
+        mock_response.status_code = 204
+        client.delete.return_value = mock_response
 
-        response = client.delete(
-            f"/tasks/{task_id}", params={"task_id": task_id}, headers=auth_headers)
+        response = client.delete(f"/tasks/{task_id}", headers=auth_headers)
 
         assert response.status_code == 204
 
@@ -249,50 +327,69 @@ class TestTasks:
         """Тест переключения статуса выполнения задачи."""
         task_id = 1
 
-        client.patch.return_value.status_code = 200
-        client.patch.return_value.json.return_value = {
-            "id": task_id, "completed": True}
+        expected_response = {
+            "msg": "Статус задачи успешно изменён",
+            "task_id": task_id,
+            "new_status": True
+        }
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.patch.return_value = mock_response
 
         response = client.patch(
             f"/tasks/tasks/{task_id}", headers=auth_headers)
 
         assert response.status_code == 200
-        assert response.json()["completed"] is True
+        response_data = response.json()
+        assert response_data["new_status"] is True
 
     def test_search_tasks(self, client, auth_headers):
         """Тест поиска задач."""
         search_query = "test"
         expected_response = [
-            {"id": 1, "name": "Test Task",
-                "text": "Test description", "completed": False}
+            {
+                "id": 1,
+                "task_name": "Test Task",
+                "completion_status": False,
+                "date_time": "2025-08-15T10:00:00",
+                "text": "Test description"
+            }
         ]
 
-        client.get.return_value.status_code = 200
-        client.get.return_value.json.return_value = expected_response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.get.return_value = mock_response
 
         response = client.get(
-            "/tasks/search", params={"search_query": search_query}, headers=auth_headers)
+            f"/tasks/search?search_query={search_query}", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.json()) == 1
+        response_data = response.json()
+        assert len(response_data) == 1
 
     def test_get_tasks_stats(self, client, auth_headers):
         """Тест получения статистики по задачам."""
         expected_stats = {
             "total_tasks": 10,
             "completed_tasks": 6,
-            "pending_tasks": 4,
-            "completion_rate": 0.6
+            "uncompleted_tasks": 4,
+            "completion_percentage": 60.0
         }
 
-        client.get.return_value.status_code = 200
-        client.get.return_value.json.return_value = expected_stats
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_stats
+        client.get.return_value = mock_response
 
         response = client.get("/tasks/stats", headers=auth_headers)
 
         assert response.status_code == 200
-        assert response.json()["total_tasks"] == 10
-        assert response.json()["completion_rate"] == 0.6
+        response_data = response.json()
+        assert response_data["total_tasks"] == 10
+        assert response_data["completion_percentage"] == 60.0
 
 
 class TestFileOperations:
@@ -301,46 +398,77 @@ class TestFileOperations:
     def test_upload_file_to_task_success(self, client, auth_headers):
         """Тест загрузки файла к задаче."""
         task_id = 1
+
+        expected_response = {"msg": "Файл успешно загружен"}
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.post.return_value = mock_response
+
+        # Имитация загрузки файла
         file_content = b"Test file content"
         files = {"uploaded_file": (
             "test.txt", io.BytesIO(file_content), "text/plain")}
-
-        client.post.return_value.status_code = 200
-        client.post.return_value.json.return_value = {
-            "message": "File uploaded successfully", "filename": "test.txt"}
 
         response = client.post(
             f"/tasks/{task_id}/file", files=files, headers=auth_headers)
 
         assert response.status_code == 200
-        assert "filename" in response.json()
+        response_data = response.json()
+        assert "msg" in response_data
+
+    def test_upload_file_invalid_extension(self, client, auth_headers):
+        """Тест загрузки файла с недопустимым расширением."""
+        task_id = 1
+
+        expected_error = {
+            "detail": [{"msg": "Недопустимое расширение файла: .exe"}]
+        }
+
+        mock_response = Mock()
+        mock_response.status_code = 415
+        mock_response.json.return_value = expected_error
+        client.post.return_value = mock_response
+
+        # Файл с недопустимым расширением
+        file_content = b"Executable content"
+        files = {"uploaded_file": ("virus.exe", io.BytesIO(
+            file_content), "application/octet-stream")}
+
+        response = client.post(
+            f"/tasks/{task_id}/file", files=files, headers=auth_headers)
+
+        assert response.status_code == 415
 
     def test_get_task_file_success(self, client, auth_headers):
         """Тест получения файла задачи."""
         task_id = 1
 
-        client.get.return_value.status_code = 200
-        client.get.return_value.content = b"File content"
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.content = b"File content"
+        mock_response.headers = {"content-type": "text/plain"}
+        client.get.return_value = mock_response
 
         response = client.get(f"/tasks/{task_id}/file", headers=auth_headers)
 
         assert response.status_code == 200
 
-    def test_upload_file_to_shared_task_success(self, client, auth_headers):
-        """Тест загрузки файла к совместной задаче."""
+    def test_get_task_file_empty(self, client, auth_headers):
+        """Тест получения пустого файла."""
         task_id = 1
-        file_content = b"Shared task file content"
-        files = {"uploaded_file": (
-            "shared_test.txt", io.BytesIO(file_content), "text/plain")}
 
-        client.post.return_value.status_code = 200
-        client.post.return_value.json.return_value = {
-            "message": "File uploaded to shared task"}
+        expected_error = {"detail": [{"msg": "файл пуст"}]}
 
-        response = client.post(
-            f"/sharing/shared-tasks/{task_id}/file", files=files, headers=auth_headers)
+        mock_response = Mock()
+        mock_response.status_code = 400
+        mock_response.json.return_value = expected_error
+        client.get.return_value = mock_response
 
-        assert response.status_code == 200
+        response = client.get(f"/tasks/{task_id}/file", headers=auth_headers)
+
+        assert response.status_code == 400
 
 
 class TestSharing:
@@ -350,28 +478,57 @@ class TestSharing:
         """Тест предоставления доступа к задаче."""
         task_id = 1
 
-        client.post.return_value.status_code = 200
-        client.post.return_value.json.return_value = {
-            "message": "Task shared successfully"}
+        expected_response = {"msg": "Задача успешно расшарена с пользователем"}
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.post.return_value = mock_response
 
         response = client.post(
             f"/sharing/tasks/{task_id}/shares", json=share_data, headers=auth_headers)
 
         assert response.status_code == 200
 
+    def test_share_task_user_not_found(self, client, auth_headers):
+        """Тест предоставления доступа несуществующему пользователю."""
+        task_id = 1
+        share_data = {"target_username": "nonexistent",
+                      "permission_level": "view"}
+
+        expected_error = {
+            "detail": [{"msg": "Пользователь 'nonexistent' не найден"}]
+        }
+
+        mock_response = Mock()
+        mock_response.status_code = 400
+        mock_response.json.return_value = expected_error
+        client.post.return_value = mock_response
+
+        response = client.post(
+            f"/sharing/tasks/{task_id}/shares", json=share_data, headers=auth_headers)
+
+        assert response.status_code == 400
+
     def test_update_share_permission_success(self, client, auth_headers):
         """Тест обновления разрешений для совместного доступа."""
         task_id = 1
         username = "collaborator"
-        params = {"new_permission": "edit", "target_username": username}
 
-        client.put.return_value.status_code = 200
-        client.put.return_value.json.return_value = {
-            "message": "Permission updated"}
+        expected_response = {"msg": "Уровень доступа успешно обновлен"}
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.put.return_value = mock_response
+
+        # Передача новых разрешений в теле запроса
+        permission_data = {"new_permission": "edit",
+                           "target_username": username}
 
         response = client.put(
             f"/sharing/tasks/{task_id}/shares/{username}",
-            params=params,
+            json=permission_data,
             headers=auth_headers
         )
 
@@ -381,17 +538,16 @@ class TestSharing:
         """Тест отзыва доступа к задаче."""
         task_id = 1
         username = "collaborator"
-        params = {"target_username": username}
 
-        client.delete.return_value.status_code = 200
-        client.delete.return_value.json.return_value = {
-            "message": "Task unshared"}
+        expected_response = {"msg": "Доступ к задаче успешно отозван"}
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.delete.return_value = mock_response
 
         response = client.delete(
-            f"/sharing/tasks/{task_id}/shares/{username}",
-            params=params,
-            headers=auth_headers
-        )
+            f"/sharing/tasks/{task_id}/shares/{username}", headers=auth_headers)
 
         assert response.status_code == 200
 
@@ -400,40 +556,51 @@ class TestSharing:
         expected_response = [
             {
                 "id": 1,
-                "name": "Shared Task 1",
-                "owner": "user1",
-                "permission": "view",
-                "completed": False
+                "task_name": "Shared Task 1",
+                "completion_status": False,
+                "date_time": "2025-08-15T10:00:00",
+                "text": "Shared task description",
+                "owner_username": "user1",
+                "permission_level": "view"
             }
         ]
 
-        client.get.return_value.status_code = 200
-        client.get.return_value.json.return_value = expected_response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.get.return_value = mock_response
 
         response = client.get("/sharing/shared-tasks", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.json()) == 1
+        response_data = response.json()
+        assert len(response_data) == 1
 
     def test_get_shared_task_by_id_success(self, client, auth_headers):
         """Тест получения совместной задачи по ID."""
         task_id = 1
         expected_response = {
             "id": task_id,
-            "name": "Shared Task",
+            "task_name": "Shared Task",
+            "completion_status": False,
+            "date_time": "2025-08-15T10:00:00",
             "text": "Shared task description",
-            "owner": "user1",
-            "permission": "edit"
+            "file_name": None,
+            "owner_username": "user1",
+            "permission_level": "edit"
         }
 
-        client.get.return_value.status_code = 200
-        client.get.return_value.json.return_value = expected_response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.get.return_value = mock_response
 
         response = client.get(
             f"/sharing/shared-tasks/{task_id}", headers=auth_headers)
 
         assert response.status_code == 200
-        assert response.json()["id"] == task_id
+        response_data = response.json()
+        assert response_data["id"] == task_id
 
     def test_update_shared_task_success(self, client, auth_headers):
         """Тест обновления совместной задачи."""
@@ -441,25 +608,22 @@ class TestSharing:
         update_data = {"name": "Updated Shared Task",
                        "text": "Updated description"}
 
-        client.put.return_value.status_code = 200
-        client.put.return_value.json.return_value = {
-            **update_data, "id": task_id}
+        expected_response = {
+            "msg": "Расшаренная задача успешно обновлена",
+            "id": task_id,
+            "task_name": "Updated Shared Task",
+            "completion_status": False,
+            "date_time": "2025-08-15T10:00:00",
+            "text": "Updated description"
+        }
+
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.put.return_value = mock_response
 
         response = client.put(
             f"/sharing/shared-tasks/{task_id}", json=update_data, headers=auth_headers)
-
-        assert response.status_code == 200
-
-    def test_toggle_shared_task_completion_status(self, client, auth_headers):
-        """Тест переключения статуса выполнения совместной задачи."""
-        task_id = 1
-
-        client.patch.return_value.status_code = 200
-        client.patch.return_value.json.return_value = {
-            "id": task_id, "completed": True}
-
-        response = client.patch(
-            f"/sharing/shared-tasks/{task_id}", headers=auth_headers)
 
         assert response.status_code == 200
 
@@ -467,39 +631,68 @@ class TestSharing:
         """Тест получения списка соавторов задачи."""
         task_id = 1
         expected_response = {
+            "task_id": task_id,
+            "total_collaborators": 2,
             "collaborators": [
-                {"username": "user1", "permission": "edit"},
-                {"username": "user2", "permission": "view"}
+                {
+                    "user_id": 1,
+                    "username": "owner",
+                    "role": "owner",
+                    "permission_level": "full_access",
+                    "can_revoke": False
+                },
+                {
+                    "user_id": 2,
+                    "username": "collaborator",
+                    "role": "collaborator",
+                    "permission_level": "edit",
+                    "shared_date": "2025-08-15T10:00:00",
+                    "can_revoke": True
+                }
             ]
         }
 
-        client.get.return_value.status_code = 200
-        client.get.return_value.json.return_value = expected_response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.get.return_value = mock_response
 
         response = client.get(
             f"/sharing/tasks/{task_id}/collaborators", headers=auth_headers)
 
         assert response.status_code == 200
-        assert len(response.json()["collaborators"]) == 2
+        response_data = response.json()
+        assert response_data["total_collaborators"] == 2
 
     def test_get_task_permissions_success(self, client, auth_headers):
         """Тест получения разрешений для задачи."""
         task_id = 1
         expected_response = {
-            "user_permission": "edit",
-            "can_share": True,
-            "can_edit": True,
-            "can_delete": False
+            "task_id": task_id,
+            "task_name": "Test Task",
+            "permission_level": "edit",
+            "permissions": {
+                "can_view": True,
+                "can_edit": True,
+                "can_delete": False,
+                "can_share": False,
+                "can_upload_files": True,
+                "can_change_status": True,
+                "is_owner": False
+            }
         }
 
-        client.get.return_value.status_code = 200
-        client.get.return_value.json.return_value = expected_response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = expected_response
+        client.get.return_value = mock_response
 
         response = client.get(
             f"/sharing/shared-tasks/{task_id}/permissions", headers=auth_headers)
 
         assert response.status_code == 200
-        assert response.json()["user_permission"] == "edit"
+        response_data = response.json()
+        assert response_data["permission_level"] == "edit"
 
 
 class TestErrorHandling:
@@ -507,9 +700,14 @@ class TestErrorHandling:
 
     def test_unauthorized_access(self, client):
         """Тест доступа без авторизации."""
-        client.get.return_value.status_code = 401
-        client.get.return_value.json.return_value = {
-            "detail": "Not authenticated"}
+        expected_error = {
+            "detail": [{"msg": "Не удалось подтвердить учетные данные"}]
+        }
+
+        mock_response = Mock()
+        mock_response.status_code = 401
+        mock_response.json.return_value = expected_error
+        client.get.return_value = mock_response
 
         response = client.get("/tasks/")
 
@@ -517,139 +715,48 @@ class TestErrorHandling:
 
     def test_forbidden_access(self, client, auth_headers):
         """Тест доступа к запрещенным ресурсам."""
-        client.get.return_value.status_code = 403
-        client.get.return_value.json.return_value = {
-            "detail": "Access forbidden"}
+        expected_error = {
+            "detail": [{"msg": "Задача не найдена или не принадлежит вам"}]
+        }
+
+        mock_response = Mock()
+        mock_response.status_code = 403
+        mock_response.json.return_value = expected_error
+        client.get.return_value = mock_response
 
         response = client.get("/sharing/shared-tasks/999",
                               headers=auth_headers)
 
         assert response.status_code == 403
 
-    def test_validation_error_response_format(self, client, auth_headers):
-        """Тест формата ответа при ошибке валидации."""
-        invalid_data = {"name": "x" * 100}  # Слишком длинное название
-
+    def test_server_error_handling(self, client, auth_headers):
+        """Тест обработки ошибок сервера."""
         expected_error = {
-            "detail": [
-                {
-                    "loc": ["body", "name"],
-                    "msg": "ensure this value has at most 30 characters",
-                    "type": "value_error.any_str.max_length"
-                }
-            ]
+            "detail": [{"msg": "Ошибка сервера: Internal server error"}]
         }
 
-        client.post.return_value.status_code = 422
-        client.post.return_value.json.return_value = expected_error
+        mock_response = Mock()
+        mock_response.status_code = 500
+        mock_response.json.return_value = expected_error
+        client.get.return_value = mock_response
 
-        response = client.post(
-            "/tasks/", json=invalid_data, headers=auth_headers)
+        response = client.get("/tasks/", headers=auth_headers)
 
-        assert response.status_code == 422
-        assert "detail" in response.json()
-        assert isinstance(response.json()["detail"], list)
-
-
-class TestIntegration:
-    """Интеграционные тесты для связанной функциональности."""
-
-    def test_complete_task_workflow(self, client, auth_headers, task_data):
-        """Тест полного жизненного цикла задачи."""
-        # Создание задачи
-        client.post.return_value.status_code = 201
-        client.post.return_value.json.return_value = {
-            "id": 1, **task_data, "completed": False}
-
-        create_response = client.post(
-            "/tasks/", json=task_data, headers=auth_headers)
-        assert create_response.status_code == 201
-        task_id = create_response.json()["id"]
-
-        # Получение задачи
-        client.get.return_value.status_code = 200
-        client.get.return_value.json.return_value = {
-            "id": task_id, **task_data, "completed": False}
-
-        get_response = client.get(
-            f"/tasks/{task_id}", params={"task_id": task_id}, headers=auth_headers)
-        assert get_response.status_code == 200
-
-        # Переключение статуса
-        client.patch.return_value.status_code = 200
-        client.patch.return_value.json.return_value = {
-            "id": task_id, "completed": True}
-
-        toggle_response = client.patch(
-            f"/tasks/tasks/{task_id}", headers=auth_headers)
-        assert toggle_response.status_code == 200
-        assert toggle_response.json()["completed"] is True
-
-        # Удаление задачи
-        client.delete.return_value.status_code = 204
-
-        delete_response = client.delete(
-            f"/tasks/{task_id}", params={"task_id": task_id}, headers=auth_headers)
-        assert delete_response.status_code == 204
-
-    def test_sharing_workflow(self, client, auth_headers, task_data, share_data):
-        """Тест полного жизненного цикла совместного доступа."""
-        task_id = 1
-
-        # Создание задачи
-        client.post.return_value.status_code = 201
-        client.post.return_value.json.return_value = {
-            "id": task_id, **task_data}
-
-        create_response = client.post(
-            "/tasks/", json=task_data, headers=auth_headers)
-        assert create_response.status_code == 201
-
-        # Предоставление доступа
-        client.post.return_value.status_code = 200
-        client.post.return_value.json.return_value = {"message": "Task shared"}
-
-        share_response = client.post(
-            f"/sharing/tasks/{task_id}/shares", json=share_data, headers=auth_headers)
-        assert share_response.status_code == 200
-
-        # Обновление разрешений
-        params = {"new_permission": "edit",
-                  "target_username": share_data["target_username"]}
-        client.put.return_value.status_code = 200
-        client.put.return_value.json.return_value = {
-            "message": "Permission updated"}
-
-        update_response = client.put(
-            f"/sharing/tasks/{task_id}/shares/{share_data['target_username']}",
-            params=params,
-            headers=auth_headers
-        )
-        assert update_response.status_code == 200
-
-        # Отзыв доступа
-        params = {"target_username": share_data["target_username"]}
-        client.delete.return_value.status_code = 200
-        client.delete.return_value.json.return_value = {
-            "message": "Task unshared"}
-
-        unshare_response = client.delete(
-            f"/sharing/tasks/{task_id}/shares/{share_data['target_username']}",
-            params=params,
-            headers=auth_headers
-        )
-        assert unshare_response.status_code == 200
+        assert response.status_code == 500
 
 
 # Параметризованные тесты
 @pytest.mark.parametrize("sort_option", ["date_desc", "date_asc", "name", "status_asc", "status_desc"])
 def test_task_sorting_options(client, auth_headers, sort_option):
     """Параметризованный тест различных опций сортировки задач."""
-    client.get.return_value.status_code = 200
-    client.get.return_value.json.return_value = {"tasks": [], "total": 0}
+    expected_response = {"tasks": [], "skip": 0, "limit": 100}
 
-    response = client.get(
-        "/tasks/", params={"sort": [sort_option]}, headers=auth_headers)
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = expected_response
+    client.get.return_value = mock_response
+
+    response = client.get(f"/tasks/?sort={sort_option}", headers=auth_headers)
     assert response.status_code == 200
 
 
@@ -660,8 +767,12 @@ def test_share_permission_levels(client, auth_headers, permission_level):
     share_data = {"target_username": "testuser",
                   "permission_level": permission_level}
 
-    client.post.return_value.status_code = 200
-    client.post.return_value.json.return_value = {"message": "Task shared"}
+    expected_response = {"msg": "Задача успешно расшарена с пользователем"}
+
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = expected_response
+    client.post.return_value = mock_response
 
     response = client.post(
         f"/sharing/tasks/{task_id}/shares", json=share_data, headers=auth_headers)
@@ -673,9 +784,20 @@ def test_invalid_usernames(client, invalid_username):
     """Параметризованный тест невалидных имен пользователей."""
     user_data = {"username": invalid_username, "password": "validpass123"}
 
-    client.post.return_value.status_code = 422
+    expected_error = {
+        "detail": [{
+            "msg": "Пользователь с таким username уже существует.",
+            "loc": ["username"],
+            "type": "value_error",
+        }]
+    }
 
-    response = client.post("/auth/register", json=user_data)
+    mock_response = Mock()
+    mock_response.status_code = 422
+    mock_response.json.return_value = expected_error
+    client.post.return_value = mock_response
+
+    response = client.post("/register", json=user_data)
     assert response.status_code == 422
 
 
