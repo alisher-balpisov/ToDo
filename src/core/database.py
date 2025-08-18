@@ -1,7 +1,7 @@
 import re
 from typing import Annotated, Generator
 
-from fastapi import Depends, File, UploadFile
+from fastapi import Depends, File, Path, UploadFile
 from pydantic import AfterValidator, Field
 from sqlalchemy import create_engine
 from sqlalchemy.orm import (DeclarativeBase, Session, declared_attr,
@@ -21,10 +21,10 @@ def get_db() -> Generator[Session, None, None]:
         session.close()
 
 
-PrimaryKey = Annotated[int, Field(gt=0, lt=2147483647)]
+PrimaryKey = Annotated[int, Path(gt=0, lt=2147483647)]
 DbSession = Annotated[Session, Depends(get_db)]
 UsernameStr = Annotated[str, AfterValidator(
-    lambda x: str.strip(x)), Field(min_length=3, max_length=20)]
+    lambda x: str.strip(x)), Path(min_length=3, max_length=20)]
 UploadedFile = Annotated[UploadFile, File()]
 
 

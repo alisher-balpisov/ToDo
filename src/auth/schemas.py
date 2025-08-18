@@ -1,7 +1,7 @@
 import secrets
 import string
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from src.constants import LENGTH_GENERATED_PASSWORD
 from src.core.database import UsernameStr
@@ -13,6 +13,8 @@ def generate_password(length: int = LENGTH_GENERATED_PASSWORD) -> str:
     состоящий как минимум из одной строчной буквы,
     одной прописной буквы и трех цифр.
      """
+    if length < 8:
+        raise ValueError("Минимальная длина пароля должна быть 8 символов")
     while True:
         password = "".join(secrets.choice(
             string.ascii_letters + string.digits) for _ in range(length))
@@ -54,6 +56,7 @@ class TokenDataSchema(BaseModel):
 
 
 class UserRegisterSchema(BaseModel):
+<<<<<<< HEAD
     username: str
     password: str | None = None
     is_password_generated: bool = False
@@ -65,6 +68,20 @@ class UserRegisterSchema(BaseModel):
             object.__setattr__(self, "is_password_generated", True)
         else:
             validate_strong_password(self.password)
+=======
+    username: UsernameStr
+    password: str = Field(default_factory=generate_password)
+
+    @field_validator("password", mode="after")
+    @classmethod
+    def password_required(cls, v):
+        return v if v and v.strip() else generate_password()
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, v: str) -> str:
+        return validate_strong_password(v)
+>>>>>>> db16824 (tests_dev)
 
 
 class UserPasswordUpdateSchema(BaseModel):
