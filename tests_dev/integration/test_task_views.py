@@ -98,7 +98,7 @@ class TestTaskEndpoints:
         original_status = test_task.completion_status
 
         response = client.patch(
-            f"/tasks/tasks/{test_task.id}", headers=auth_headers)
+            f"/tasks/{test_task.id}", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -107,7 +107,7 @@ class TestTaskEndpoints:
     def test_search_tasks(self, client, auth_headers, test_task):
         """Тест поиска задач."""
         response = client.get(
-            f"/tasks/search?search_query={test_task.name}", headers=auth_headers)
+            f"/search?search_query={test_task.name}", headers=auth_headers)
 
         assert response.status_code == 200
         data = response.json()
@@ -126,8 +126,11 @@ class TestTaskEndpoints:
         # Помечаем одну как выполненную
         task1.completion_status = True
         db_session.commit()
+        db_session.refresh(task1)
+        db_session.refresh(task2)
 
-        response = client.get("/tasks/stats", headers=auth_headers)
+        response = client.get("/stats", headers=auth_headers)
+        print(response.json(), '<- resp')
 
         assert response.status_code == 200
         data = response.json()

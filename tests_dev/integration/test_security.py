@@ -9,7 +9,7 @@ class TestSecurity:
         malicious_query = "; DROP TABLE tasks; --"
 
         response = client.get(
-            f"/tasks/search?search_query={malicious_query}", headers=auth_headers)
+            f"/search?search_query={malicious_query}", headers=auth_headers)
 
         assert response.status_code == 200
         assert response.json() == []

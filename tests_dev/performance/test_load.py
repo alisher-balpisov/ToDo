@@ -82,7 +82,7 @@ class TestPerformance:
         # Тестируем поиск
         start_time = time.time()
         response = client.get(
-            "/tasks/search?search_query=urgent", headers=auth_headers)
+            "/search?search_query=urgent", headers=auth_headers)
         end_time = time.time()
 
         assert response.status_code == 200

@@ -3,22 +3,18 @@ class TestCompleteWorkflows:
 
     def test_user_registration_and_task_management_workflow(self, client):
         """Полный сценарий: регистрация, создание задач, управление."""
-        # 1. Регистрация
+
         user_data = {
             "username": "workflowuser",
             "password": "Password123"
         }
 
+        # 1. Регистрация
         response = client.post("/register", json=user_data)
         assert response.status_code == 200
 
         # 2. Вход в систему
-        login_data = {
-            "username": "workflowuser",
-            "password": "Password123"
-        }
-
-        response = client.post("/login", data=login_data)
+        response = client.post("/login", data=user_data)
         assert response.status_code == 200
 
         token = response.json()["access_token"]
@@ -51,12 +47,12 @@ class TestCompleteWorkflows:
         assert response.status_code == 200
 
         # 6. Переключение статуса выполнения
-        response = client.patch(f"/tasks/tasks/{task_id}", headers=headers)
+        response = client.patch(f"/tasks/{task_id}", headers=headers)
         assert response.status_code == 200
         assert response.json()["new_status"] is True
 
         # 7. Получение статистики
-        response = client.get("/tasks/stats", headers=headers)
+        response = client.get("/stats", headers=headers)
         assert response.status_code == 200
 
         stats = response.json()

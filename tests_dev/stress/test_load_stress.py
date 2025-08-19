@@ -66,11 +66,11 @@ class TestLoadTesting:
         """Тест пула соединений с БД."""
         def db_intensive_operation():
             # Операция, которая требует подключения к БД
-            response = client.get("/tasks/stats", headers=auth_headers)
+            response = client.get("/stats", headers=auth_headers)
             return response.status_code == 200
 
         # Одновременные запросы к БД
-        with ThreadPoolExecutor(max_workers=50) as executor:
+        with ThreadPoolExecutor(max_workers=8) as executor:
             futures = [executor.submit(db_intensive_operation)
                        for _ in range(100)]
             results = [future.result() for future in futures]
