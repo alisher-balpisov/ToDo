@@ -7,7 +7,8 @@ from src.auth.schemas import (TokenSchema, UserPasswordUpdateSchema,
                               UserRegisterSchema)
 from src.core.database import DbSession
 
-from .service import CurrentUser, login_service, register_service
+from .service import (CurrentUser, login_service, oauth2_scheme,
+                      refresh_service, register_service)
 
 router = APIRouter()
 
@@ -31,12 +32,27 @@ def register(
 @router.post("/login")
 async def login(
         session: DbSession,
-        user_in: OAuth2PasswordRequestForm = Depends()
+        user_in: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> TokenSchema:
     access_token, refresh_token = login_service(session=session,
                                                 username=user_in.username,
                                                 password=user_in.password)
-    return TokenSchema(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
+    return TokenSchema(access_token=access_token, refresh_token=refresh_token, type="bearer")
+
+
+@router.post("/refresh")
+async def refresh(
+    session: DbSession,
+    token: Annotated[str, Depends(oauth2_scheme)]
+):
+    """Обновление access токена по refresh токену."""
+    access_token, refresh_token = refresh_service(session=session,
+                                                  token=token)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
 
 
 @router.post("/change-password")

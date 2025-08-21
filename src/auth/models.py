@@ -4,6 +4,7 @@ import bcrypt
 from jose import jwt
 from sqlalchemy import Boolean, Column, DateTime, Integer, LargeBinary, String
 
+from src.auth.schemas import TokenType
 from src.constants import USERNAME_MAX_LENGTH
 from src.core.config import settings
 from src.core.database import Base
@@ -68,7 +69,7 @@ class User(Base):
             raise ValueError("Password cannot be empty")
         self.password_hash = hash_password(password)
 
-    def token(self, expiration: int) -> str:
+    def token(self, expiration: int, type: TokenType) -> str:
         """Создание JWT токена."""
         now = datetime.now(timezone.utc)
         expire = now + timedelta(minutes=expiration)
@@ -77,5 +78,6 @@ class User(Base):
             'user_id': self.id,
             'exp': expire,
             'iat': now,
+            'type': type
         }
         return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)

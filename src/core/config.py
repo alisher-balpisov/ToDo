@@ -51,6 +51,7 @@ class Settings(BaseSettings):
 
     # File Upload
     MAX_FILE_SIZE_MB: int = 20
+    MAX_FILE_SIZE: int = MAX_FILE_SIZE_MB * 1024 * 1024
     ALLOWED_EXTENSIONS: tuple[str, ...] = Field(
         default_factory=lambda: (".txt", ".pdf", ".png", ".jpg", ".jpeg")
     )

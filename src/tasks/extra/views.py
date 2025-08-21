@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
@@ -17,9 +17,9 @@ router = APIRouter()
 @router.get("/search")
 def search_tasks(
         session: DbSession,
-        current_user: User = Depends(get_current_user),
-        search_query: str = Query()
-) -> list[dict[str, Any]]:
+        current_user: CurrentUser,
+        search_query: str
+) -> list[dict]:
     try:
         tasks = search_tasks_service(session=session,
                                      current_user_id=current_user.id,
@@ -41,9 +41,9 @@ def search_tasks(
 
 @router.get("/stats")
 def get_tasks_stats(
-        session: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user)
-) -> dict[str, Any]:
+        session: DbSession,
+        current_user: CurrentUser
+) -> dict:
     try:
         result = get_tasks_stats_service(session=session,
                                          current_user_id=current_user.id)
@@ -63,7 +63,7 @@ def toggle_task_completion_status(
         session: DbSession,
         current_user: CurrentUser,
         task_id: PrimaryKey,
-) -> dict[str, Any]:
+) -> dict:
     try:
         task = toggle_task_completion_status_service(session=session,
                                                      current_user_id=current_user.id,

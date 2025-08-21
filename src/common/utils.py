@@ -4,7 +4,8 @@ from fastapi import HTTPException, UploadFile, status
 
 from src.auth.models import User
 from src.common.models import Task
-from src.constants import ALLOWED_EXTENSIONS, ALLOWED_TYPES, MAX_FILE_SIZE
+from src.constants import ALLOWED_TYPES
+from src.core.config import settings
 from src.exceptions import FILE_EMPTY
 
 
@@ -57,7 +58,7 @@ async def validate_and_read_file(uploaded_file: UploadFile) -> bytes:
         )
 
     ext = os.path.splitext(filename)[1].lower()
-    if ext not in ALLOWED_EXTENSIONS:
+    if ext not in settings.ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
             detail=[{"msg": f"Недопустимое расширение файла: {ext}"}],
@@ -75,11 +76,11 @@ async def validate_and_read_file(uploaded_file: UploadFile) -> bytes:
     if not file_data:
         raise FILE_EMPTY
 
-    if len(file_data) > MAX_FILE_SIZE:
+    if len(file_data) > settings.MAX_FILE_SIZE:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail=[
-                {"msg": f"Размер файла превышает максимально допустимый ({MAX_FILE_SIZE_MB}MB)"}],
+                {"msg": f"Размер файла превышает максимально допустимый ({settings.MAX_FILE_SIZE_MB}MB)"}],
         )
 
     return file_data

@@ -52,11 +52,11 @@ def validate_strong_password(v: str) -> str:
 class TokenSchema(BaseModel):
     access_token: str
     refresh_token: str
-    token_type: str
+    type: str
 
 
-class TokenType(Enum):
-    BEARER = "Bearer"
+class TokenType(str, Enum):
+    ACCESS = "Access"
     REFRESH = "Refresh"
 
 

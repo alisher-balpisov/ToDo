@@ -4,6 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
+from src.auth.schemas import TokenType
 from src.core.config import settings
 from src.core.database import DbSession
 from src.exceptions import user_not_found
@@ -29,18 +30,60 @@ def get_user_by_email(session, email: str) -> User | None:
     return session.query(User).filter(User.email == email).one_or_none()
 
 
+def verify_token(token: str, expected_type: TokenType | None = None) -> dict:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET,
+            algorithms=[settings.JWT_ALGORITHM]
+        )
+        token_type = payload.get("type")
+        if expected_type:
+            if token_type is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail={"msg": "Тип токена не указан"}
+                )
+            if token_type != expected_type:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail={
+                        "msg": f"Ожидался токен типа {expected_type}, получен {token_type}"}
+                )
+
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail={"msg": "Недействительный токен"}
+            )
+        return payload
+
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"msg": "Недействительный или просроченный токен"},
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+
 def register_service(
         session,
         username: str,
-        password: str
+        password: str,
+        email: str | None = None
 ) -> None:
-    """Создает нового пользователя ToDoUser."""
-    user = get_user_by_username(session=session, username=username)
-    if user:
+    if get_user_by_username(session=session, username=username):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=[{"msg": "Пользователь с таким username уже существует."}],
         )
+    if email is not None and get_user_by_email(session=session, email=email):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=[{"msg": "Пользователь с таким email уже существует."}],
+        )
+
     password_hash = hash_password(password)
 
     new_user = User(
@@ -77,58 +120,19 @@ def login_service(
             headers={"WWW-Authenticate": "Bearer"},
         )
     session.commit()
-    access_token = user.token(settings.JWT_EXPIRATION_MINUTES)
-    refresh_token = user.token(settings.JWT_REFRESH_EXPIRATION_MINUTES)
+    access_token = user.token(
+        settings.JWT_EXPIRATION_MINUTES, TokenType.ACCESS)
+    refresh_token = user.token(
+        settings.JWT_REFRESH_EXPIRATION_MINUTES, TokenType.REFRESH)
     return access_token, refresh_token
 
 
-def credentials_exception():
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail=[{"msg": "Не удалось подтвердить учетные данные"}],
-        headers={"WWW-Authenticate": "Bearer"}
-    )
-
-
-def verify_token(token: str) -> dict:
-    """Проверка JWT токена."""
-    try:
-        payload = jwt.decode(
-            token,
-            settings.JWT_SECRET,
-            algorithms=[settings.JWT_ALGORITHM]
-        )
-
-        # Проверка типа токена
-        if payload.get("type") != "access":
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={"msg": "Неправильный тип токена"}
-            )
-
-        return payload
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"msg": "Недействительный или просроченный токен"},
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-
-async def get_current_user(
-        session: DbSession,
-        token: Annotated[str, Depends(oauth2_scheme)]
-) -> User:
-    """Получение текущего пользователя."""
-    payload = verify_token(token)
+def refresh_service(
+        session,
+        token: str
+):
+    payload = verify_token(token, TokenType.REFRESH)
     username = payload.get("sub")
-
-    if not username:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"msg": "Недействительный токен"}
-        )
-
     user = get_user_by_username(session, username)
     if not user:
         raise user_not_found(user)
@@ -143,7 +147,45 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_423_LOCKED,
             detail={
-                "msg": "Учетная запись временно заблокирована из-за неудачных попыток входа в систему"}
+                "msg": "Учетная запись временно заблокирована"}
+        )
+
+    access_token = user.token(
+        settings.JWT_EXPIRATION_MINUTES, TokenType.ACCESS)
+    refresh_token = user.token(
+        settings.JWT_REFRESH_EXPIRATION_MINUTES, TokenType.REFRESH)
+    return access_token, refresh_token
+
+
+def credentials_exception():
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=[{"msg": "Не удалось подтвердить учетные данные"}],
+        headers={"WWW-Authenticate": "Bearer"}
+    )
+
+
+async def get_current_user(
+        session: DbSession,
+        token: Annotated[str, Depends(oauth2_scheme)]
+) -> User:
+    payload = verify_token(token, TokenType.ACCESS)
+    username = payload.get("sub")
+    user = get_user_by_username(session, username)
+    if not user:
+        raise user_not_found(user)
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={"msg": "Учетная запись пользователя отключена"}
+        )
+
+    if user.is_locked:
+        raise HTTPException(
+            status_code=status.HTTP_423_LOCKED,
+            detail={
+                "msg": "Учетная запись временно заблокирована"}
         )
 
     return user
