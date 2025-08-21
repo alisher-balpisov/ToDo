@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from src.auth.service import CurrentUser
 from src.common.schemas import TaskSchema
@@ -30,7 +30,9 @@ def create_task(
             "task_id": new_task.id,
             "task_name": new_task.name
         }
-
+    
+    except HTTPException:
+        raise
     except Exception as e:
         session.rollback()
         handle_server_exception(e, "Ошибка сервера при создании задачи")
@@ -89,7 +91,8 @@ def get_task(
             "text": task.text,
             "file_name": task.file_name,
         }
-
+    except HTTPException:
+        raise
     except Exception as e:
         handle_server_exception(e, "Ошибка сервера при получении задачи")
 

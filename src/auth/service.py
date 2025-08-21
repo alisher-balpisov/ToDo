@@ -4,7 +4,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 
-from src.core.config import TODO_JWT_ALG, TODO_JWT_SECRET
+from src.core.config import settings
 from src.core.database import DbSession
 
 from .models import ToDoUser, get_hash_password
@@ -65,7 +65,7 @@ def get_current_user(
         token: Annotated[str, Depends(oauth2_scheme)]
 ) -> ToDoUser:
     try:
-        payload = jwt.decode(token, TODO_JWT_SECRET, algorithms=[TODO_JWT_ALG])
+        payload = jwt.decode(token, settings.TODO_JWT_SECRET, algorithms=[settings.TODO_JWT_ALG])
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception()

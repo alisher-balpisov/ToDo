@@ -31,7 +31,7 @@ def share_task(
             e, "Ошибка сервера при предоставлении доступа к задаче")
 
 
-@router.delete("/tasks/{task_id}/shares/{username}")
+@router.delete("/tasks/{task_id}/shares/{target_username}")
 def unshare_task(
         session: DbSession,
         current_user: CurrentUser,

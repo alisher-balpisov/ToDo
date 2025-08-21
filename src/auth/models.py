@@ -5,7 +5,7 @@ from jose import jwt
 from sqlalchemy import Boolean, Column, Integer, LargeBinary, String
 
 from src.constants import DEFAULT_ENCODING
-from src.core.config import TODO_JWT_ALG, TODO_JWT_EXP, TODO_JWT_SECRET
+from src.core.config import settings
 from src.core.database import Base
 
 
@@ -38,9 +38,9 @@ class ToDoUser(Base):
     @property
     def get_token(self) -> str:
         now = datetime.now(timezone.utc).astimezone()
-        exp = now + timedelta(minutes=TODO_JWT_EXP)
+        exp = now + timedelta(minutes=settings.TODO_JWT_EXP)
         data = {
             'exp': exp,
             'sub': self.username
         }
-        return jwt.encode(data, TODO_JWT_SECRET, algorithm=TODO_JWT_ALG)
+        return jwt.encode(data, settings.TODO_JWT_SECRET, algorithm=settings.TODO_JWT_ALG)

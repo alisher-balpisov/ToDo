@@ -364,7 +364,7 @@ class TestTasks:
         client.get.return_value = mock_response
 
         response = client.get(
-            f"/tasks/search?search_query={search_query}", headers=auth_headers)
+            f"/search?search_query={search_query}", headers=auth_headers)
 
         assert response.status_code == 200
         response_data = response.json()
@@ -384,7 +384,7 @@ class TestTasks:
         mock_response.json.return_value = expected_stats
         client.get.return_value = mock_response
 
-        response = client.get("/tasks/stats", headers=auth_headers)
+        response = client.get("/stats", headers=auth_headers)
 
         assert response.status_code == 200
         response_data = response.json()

@@ -1,37 +1,83 @@
-from urllib import parse
+# src/core/config.py
+import secrets
+from typing import Literal
 
-from starlette.config import Config
-
-config = Config('.env')
-
-
-class DatabaseCredentials:
-    def __init__(self, value: str):
-        # оставляем сырые данные для возможного логирования
-        self._value = value
-        self.username, raw_password = value.split(":", 1)
-        # это позволит поддерживать специальные символы для учетных данных
-        self.password = parse.quote(str(raw_password))
-
-    def __str__(self):
-        return f"{self.username}:{self.password}"
+from pydantic import Field, field_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-TODO_JWT_SECRET = config("TODO_JWT_SECRET", default="SECRET")
-TODO_JWT_ALG = config("TODO_JWT_ALG", default="HS256")
-TODO_JWT_EXP = config("TODO_JWT_EXP", cast=int, default=60)  # minuts
+class Settings(BaseSettings):
+    """Безопасная конфигурация приложения."""
+
+    # JWT Configuration
+    JWT_SECRET: str = Field(
+        # генерируем случайный ключ если не задан
+        default_factory=lambda: secrets.token_urlsafe(32),
+        description="JWT secret key (minimum 32 characters)"
+    )
+    JWT_ALGORITHM: str = "HS256"
+    JWT_EXPIRATION_MINUTES: int = 60
+    JWT_REFRESH_EXPIRATION_DAYS: int = 7
+
+    # Database
+    DATABASE_URL: str | None = None
+
+    DATABASE_DRIVER: str = "postgresql+psycopg2"
+    DATABASE_HOSTNAME: str = "localhost"
+    DATABASE_PORT: int = 5432
+    DATABASE_USER: str = "postgres"
+    DATABASE_PASSWORD: str
+    DATABASE_NAME: str = "base_db"
+    DATABASE_ECHO: bool = False
+
+    @property
+    def SQLALCHEMY_DATABASE_URL(self) -> str:
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+        return (
+            f"{self.DATABASE_DRIVER}://{self.DATABASE_USER}:{self.DATABASE_PASSWORD}"
+            f"@{self.DATABASE_HOSTNAME}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
+        )
+
+    # Security
+    BCRYPT_ROUNDS: int = 12   # количество раундов хэширования паролей
+    PASSWORD_MIN_LENGTH: int = 8
+    MAX_LOGIN_ATTEMPTS: int = 5
+    LOCKOUT_TIME_MINUTES: int = 5
+
+    # Rate Limiting
+    RATE_LIMIT_PER_MINUTE: int = 60
+
+    # File Upload
+    MAX_FILE_SIZE_MB: int = 20
+    ALLOWED_EXTENSIONS: tuple[str] = Field(
+        default_factory=lambda: [".txt", ".pdf", ".png", ".jpg", ".jpeg"]
+    )
+
+    # CORS
+    CORS_ORIGINS: list[str] = Field(
+        default_factory=lambda: [
+            "http://localhost:3000", "http://localhost:8080"]
+    )
+
+    # Environment (режим работы приложения)
+
+    ENVIRONMENT: Literal[
+        "development", "production", "testing"] = "development"
+
+    @field_validator("JWT_SECRET")
+    def validate_jwt_secret(cls, v):
+        """Проверка, что ключ достаточно длинный для безопасности."""
+        if len(v) < 32:
+            raise ValueError(
+                "JWT_SECRET должен содержать не менее 32 символов")
+        return v
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=True,   # имена переменных чувствительны к регистру
+        extra="ignore"    # игнорировать лишние переменные в .env
+    )
 
 
-DATABASE_HOSTNAME = config("DATABASE_HOSTNAME", default="localhost")
-# .env → DATABASE_CREDENTIALS=username:password
-DATABASE_CREDENTIALS = config("DATABASE_CREDENTIALS", cast=DatabaseCredentials, default="postgres:200614")
-_DATABASE_USER, _DATABASE_PASSWORD = str(DATABASE_CREDENTIALS).split(":")
-
-DATABASE_NAME = config("DATABASE_NAME", default="base_db")
-DATABASE_PORT = config("DATABASE_PORT", default="5432")
-
-
-SQLALCHEMY_DATABASE_URL = f"postgresql+psycopg2://{_DATABASE_USER}:{_DATABASE_PASSWORD}@{DATABASE_HOSTNAME}:{DATABASE_PORT}/{DATABASE_NAME}"
-
-
-
+settings = Settings()

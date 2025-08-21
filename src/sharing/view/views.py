@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 
 from src.auth.service import CurrentUser
 from src.core.database import DbSession, PrimaryKey
@@ -41,6 +41,8 @@ def get_shared_tasks(
             } for task, owner_username, permission_level in tasks_info
         ]
 
+    except HTTPException:
+        raise
     except Exception as e:
         handle_server_exception(
             e, "Ошибка сервера при получении расшаренных задач")

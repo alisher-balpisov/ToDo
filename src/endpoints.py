@@ -13,11 +13,11 @@ api_router = APIRouter()
 
 api_router.include_router(auth_router)
 
+api_router.include_router(tasks_crud_router, prefix="/tasks")
+api_router.include_router(tasks_extra_router)
+api_router.include_router(tasks_file_router, prefix="/tasks")
+
 api_router.include_router(sharing_edit_router, prefix="/sharing")
 api_router.include_router(sharing_file_router, prefix="/sharing")
 api_router.include_router(sharing_share_router, prefix="/sharing")
 api_router.include_router(sharing_view_router, prefix="/sharing")
-
-api_router.include_router(tasks_crud_router, prefix="/tasks")
-api_router.include_router(tasks_extra_router, prefix="/tasks")
-api_router.include_router(tasks_file_router, prefix="/tasks")

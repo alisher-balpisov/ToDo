@@ -1,29 +1,31 @@
-from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from typing import Any
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from src.core.config import settings
 from src.core.database import create_tables
 from src.endpoints import api_router
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncGenerator[None, Any, None]:
+async def lifespan(app: FastAPI):
     create_tables()
     yield
     print("\nПрограмма остановлена.")
     print("-" * 30 + "\n")
 
-
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(
+    title="TodoApp API",
+    description="Enterprise Todo Application",
+    version="1.0.0",
+    lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["*"],
 )
 

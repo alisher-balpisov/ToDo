@@ -1,9 +1,11 @@
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
 
-from src.auth.service import CurrentUser
-from src.core.database import DbSession, PrimaryKey
+from src.auth.models import ToDoUser
+from src.auth.service import CurrentUser, get_current_user
+from src.core.database import DbSession, PrimaryKey, get_db
 from src.core.exceptions import handle_server_exception
 
 from .service import (get_tasks_stats_service, search_tasks_service,
@@ -15,11 +17,10 @@ router = APIRouter()
 @router.get("/search")
 def search_tasks(
         session: DbSession,
-        current_user: CurrentUser,
-        search_query: str,
+        current_user: ToDoUser = Depends(get_current_user),
+        search_query: str = Query()
 ) -> list[dict[str, Any]]:
     try:
-        print(search_query, "<- query")
         tasks = search_tasks_service(session=session,
                                      current_user_id=current_user.id,
                                      search_query=search_query)
@@ -40,8 +41,8 @@ def search_tasks(
 
 @router.get("/stats")
 def get_tasks_stats(
-        session: DbSession,
-        current_user: CurrentUser
+        session: Session = Depends(get_db),
+        current_user: ToDoUser = Depends(get_current_user)
 ) -> dict[str, Any]:
     try:
         result = get_tasks_stats_service(session=session,
@@ -57,7 +58,7 @@ def get_tasks_stats(
         handle_server_exception(e, "Ошибка сервера при выводе статистики")
 
 
-@router.patch("/{task_id}")
+@router.patch("/tasks/{task_id}")
 def toggle_task_completion_status(
         session: DbSession,
         current_user: CurrentUser,

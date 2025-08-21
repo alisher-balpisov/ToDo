@@ -15,7 +15,7 @@ from .service import (toggle_shared_task_completion_status_service,
 router = APIRouter()
 
 
-@router.put("/tasks/{task_id}/shares/{username}")
+@router.put("/tasks/{task_id}/shares/{target_username}")
 def update_share_permission(
         session: DbSession,
         current_user: CurrentUser,

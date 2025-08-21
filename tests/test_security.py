@@ -10,7 +10,7 @@ class TestSecurity:
         client.get.return_value.json.return_value = []
 
         response = client.get(
-            "/tasks/search", params=search_data, headers=auth_headers)
+            "/search", params=search_data, headers=auth_headers)
 
         # API должен вернуть пустой результат, а не ошибку
         assert response.status_code == 200
