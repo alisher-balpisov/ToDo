@@ -3,7 +3,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from src.auth.models import ToDoUser
+from src.auth.models import User
 from src.auth.service import CurrentUser, get_current_user
 from src.core.database import DbSession, PrimaryKey, get_db
 from src.core.exceptions import handle_server_exception
@@ -17,7 +17,7 @@ router = APIRouter()
 @router.get("/search")
 def search_tasks(
         session: DbSession,
-        current_user: ToDoUser = Depends(get_current_user),
+        current_user: User = Depends(get_current_user),
         search_query: str = Query()
 ) -> list[dict[str, Any]]:
     try:
@@ -42,7 +42,7 @@ def search_tasks(
 @router.get("/stats")
 def get_tasks_stats(
         session: Session = Depends(get_db),
-        current_user: ToDoUser = Depends(get_current_user)
+        current_user: User = Depends(get_current_user)
 ) -> dict[str, Any]:
     try:
         result = get_tasks_stats_service(session=session,

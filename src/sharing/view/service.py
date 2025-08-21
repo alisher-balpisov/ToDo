@@ -1,4 +1,4 @@
-from src.auth.models import ToDoUser
+from src.auth.models import User
 from src.auth.service import get_user_by_id
 from src.common.models import Task
 from src.common.utils import (get_task, get_task_user, is_task_owner,
@@ -23,11 +23,11 @@ def get_shared_tasks_service(
     tasks_info = (
         session.query(
             Task,
-            ToDoUser.username.label("owner_username"),
+            User.username.label("owner_username"),
             Share.permission_level
         )
         .join(Share, Share.task_id == Task.id)
-        .join(ToDoUser, ToDoUser.id == Task.user_id)
+        .join(User, User.id == Task.user_id)
         .filter(Share.target_user_id == current_user_id)
     )
     order_by = map_sort_rules(sort, shared_tasks_sort_mapping)
@@ -80,8 +80,8 @@ def get_task_collaborators_service(
         })
 
     shared_users_query = (
-        session.query(Share, ToDoUser)
-        .join(ToDoUser, Share.target_user_id == ToDoUser.id)
+        session.query(Share, User)
+        .join(User, Share.target_user_id == User.id)
         .filter(Share.task_id == task_id)
         .all()
     )

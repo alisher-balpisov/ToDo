@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy import (Column, DateTime, Enum, ForeignKey, Integer,
                         UniqueConstraint)
 
-from src.auth.models import ToDoUser
+from src.auth.models import User
 from src.common.models import Task
 from src.core.database import Base
 
@@ -23,10 +23,10 @@ class Share(Base):
                      ForeignKey(Task.id), index=True, nullable=False)
 
     owner_id = Column(Integer,
-                      ForeignKey(ToDoUser.id), index=True, nullable=False)
+                      ForeignKey(User.id), index=True, nullable=False)
 
     target_user_id = Column(Integer,
-                            ForeignKey(ToDoUser.id), index=True, nullable=False)
+                            ForeignKey(User.id), index=True, nullable=False)
 
     permission_level = Column(Enum(SharedAccessEnum),
                               default=SharedAccessEnum.view)

@@ -55,11 +55,7 @@ class TestAuthentication:
         invalid_data = {"username": "ab", "password": ""}
 
         expected_error = {
-            "detail": [{
-                "msg": "Пользователь с таким username уже существует.",
-                "loc": ["username"],
-                "type": "value_error",
-            }]
+            "detail": [{"msg": "Пользователь с таким username уже существует."}],
         }
 
         mock_response = Mock()
@@ -785,11 +781,7 @@ def test_invalid_usernames(client, invalid_username):
     user_data = {"username": invalid_username, "password": "validpass123"}
 
     expected_error = {
-        "detail": [{
-            "msg": "Пользователь с таким username уже существует.",
-            "loc": ["username"],
-            "type": "value_error",
-        }]
+        "detail": [{"msg": "Пользователь с таким username уже существует."}],
     }
 
     mock_response = Mock()

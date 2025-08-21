@@ -1,14 +1,11 @@
-from unittest.mock import Mock
-
 import pytest
 from jose import jwt
 
-from src.auth.models import ToDoUser
 from src.auth.schemas import UserRegisterSchema
 from src.auth.service import (credentials_exception, get_current_user,
                               get_user_by_id, get_user_by_username,
                               register_service)
-from src.core.config import TODO_JWT_ALG, TODO_JWT_SECRET
+from src.core.config import settings
 
 
 class TestAuthService:
@@ -59,7 +56,7 @@ class TestAuthService:
 
     def test_get_current_user_valid_token(self, db_session, test_user):
         """Тест получения текущего пользователя с валидным токеном."""
-        token = test_user.get_token
+        token = test_user.token
 
         current_user = get_current_user(db_session, token)
 
@@ -68,7 +65,7 @@ class TestAuthService:
 
     def test_get_current_user_invalid_token(self, db_session):
         """Тест получения текущего пользователя с невалидным токеном."""
-        with pytest.raises(Exception):  # credentials_exception
+        with pytest.raises(HTTPException):
             get_current_user(db_session, "invalid_token")
 
     def test_get_current_user_expired_token(self, db_session, test_user):
@@ -79,14 +76,14 @@ class TestAuthService:
         past_time = datetime.now(timezone.utc) - timedelta(hours=1)
         payload = {"exp": past_time, "sub": test_user.username}
         expired_token = jwt.encode(
-            payload, TODO_JWT_SECRET, algorithm=TODO_JWT_ALG)
+            payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
-        with pytest.raises(Exception):  # credentials_exception
+        with pytest.raises(HTTPException):  # credentials_exception
             get_current_user(db_session, expired_token)
 
     def test_credentials_exception(self):
         """Тест исключения для неавторизованных пользователей."""
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(HTTPException) as exc_info:
             credentials_exception()
 
         # Проверяем, что это HTTPException с кодом 401

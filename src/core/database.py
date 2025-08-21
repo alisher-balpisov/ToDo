@@ -7,6 +7,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import (DeclarativeBase, Session, declared_attr,
                             sessionmaker)
 
+from src.constants import USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH
 from src.core.config import settings
 
 engine = create_engine(settings.SQLALCHEMY_DATABASE_URL)
@@ -24,7 +25,7 @@ def get_db():
 PrimaryKey = Annotated[int, Path(gt=0, lt=2147483647)]
 DbSession = Annotated[Session, Depends(get_db)]
 UsernameStr = Annotated[str, AfterValidator(
-    lambda x: str.strip(x)), Path(min_length=3, max_length=20)]
+    lambda x: str.strip(x)), Path(min_length=USERNAME_MIN_LENGTH, max_length=USERNAME_MAX_LENGTH)]
 UploadedFile = Annotated[UploadFile, File()]
 
 

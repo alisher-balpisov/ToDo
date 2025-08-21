@@ -7,7 +7,7 @@ from src.auth.schemas import (TokenSchema, UserPasswordUpdateSchema,
                               UserRegisterSchema)
 from src.core.database import DbSession
 
-from .service import CurrentUser, get_user_by_username, register_service
+from .service import CurrentUser, login_service, register_service
 
 router = APIRouter()
 
@@ -16,7 +16,7 @@ router = APIRouter()
 def register(
         session: DbSession,
         user_in: UserRegisterSchema,
-) :
+):
     register_service(session=session,
                      username=user_in.username,
                      password=user_in.password)
@@ -31,27 +31,12 @@ def register(
 @router.post("/login")
 async def login(
         session: DbSession,
-        user_in: Annotated[OAuth2PasswordRequestForm, Depends()]
+        user_in: OAuth2PasswordRequestForm = Depends()
 ) -> TokenSchema:
-    user = get_user_by_username(session=session, username=user_in.username)
-    if user and user.verify_password(user_in.password):
-        return TokenSchema(access_token=user.get_token, token_type="bearer")
-
-    raise HTTPException(
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-        detail=[
-            {
-                "msg": "Invalid username.",
-                "loc": ["username"],
-                "type": "value_error",
-            },
-            {
-                "msg": "Invalid password.",
-                "loc": ["password"],
-                "type": "value_error",
-            },
-        ],
-    )
+    access_token, refresh_token = login_service(session=session,
+                                                username=user_in.username,
+                                                password=user_in.password)
+    return TokenSchema(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
 
 @router.post("/change-password")

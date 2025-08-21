@@ -1,5 +1,5 @@
 import pytest
-from src.auth.models import ToDoUser
+from src.auth.models import User
 
 
 class TestAuthEndpoints:
@@ -21,8 +21,8 @@ class TestAuthEndpoints:
         assert data["msg"] == "Регистрация пройдена успешно"
         
         # Проверяем, что пользователь создан в БД
-        user = db_session.query(ToDoUser).filter(
-            ToDoUser.username == "newuser"
+        user = db_session.query(User).filter(
+            User.username == "newuser"
         ).first()
         assert user is not None
 
@@ -73,7 +73,7 @@ class TestAuthEndpoints:
         
         response = client.post("/login", data=login_data)
         
-        assert response.status_code == 422
+        assert response.status_code == 401
         data = response.json()
         assert any("Invalid" in detail["msg"] for detail in data["detail"])
 
@@ -86,7 +86,7 @@ class TestAuthEndpoints:
         
         response = client.post("/login", data=login_data)
         
-        assert response.status_code == 422
+        assert response.status_code == 401
 
     def test_change_password_success(self, client, test_user, auth_headers):
         """Тест успешной смены пароля."""

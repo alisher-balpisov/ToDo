@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     )
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 60
-    JWT_REFRESH_EXPIRATION_DAYS: int = 7
+    JWT_REFRESH_EXPIRATION_MINUTES: int = 10080   # 7 дней
+    DEFAULT_ENCODING: str = "utf-8"
 
     # Database
     DATABASE_URL: str | None = None
@@ -50,8 +51,8 @@ class Settings(BaseSettings):
 
     # File Upload
     MAX_FILE_SIZE_MB: int = 20
-    ALLOWED_EXTENSIONS: tuple[str] = Field(
-        default_factory=lambda: [".txt", ".pdf", ".png", ".jpg", ".jpeg"]
+    ALLOWED_EXTENSIONS: tuple[str, ...] = Field(
+        default_factory=lambda: (".txt", ".pdf", ".png", ".jpg", ".jpeg")
     )
 
     # CORS

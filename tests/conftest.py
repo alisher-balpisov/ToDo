@@ -5,6 +5,7 @@ from typing import Any, Dict, Generator
 from unittest.mock import MagicMock, Mock
 
 import pytest
+from src.core.config import settings
 
 
 @pytest.fixture
@@ -59,8 +60,8 @@ def app_config():
     """Конфигурация приложения для тестов."""
     return {
         "DATABASE_URL": "sqlite:///./test.db",
-        "TODO_JWT_SECRET": "test_secret_key_for_testing",
-        "TODO_JWT_ALG": "HS256",
+        "JWT_SECRET": "test_secret_key_for_testing",
+        "JWT_ALGORITHM": "HS256",
         "TODO_JWT_EXP": 30,
         "FILE_UPLOAD_PATH": "/tmp/test_uploads"
     }
@@ -189,7 +190,7 @@ def api_responses():
         "created": {"msg": "Ресурс создан успешно"},
         "not_found": {"detail": [{"msg": "Задача не найдена"}]},
         "unauthorized": {"detail": [{"msg": "Не удалось подтвердить учетные данные"}]},
-        "forbidden": {"detail": [{"msg": "Задача не найдена или не принадлежит вам"}]},
+        "forbidden": {" ": [{"msg": "Задача не найдена или не принадлежит вам"}]},
         "validation_error": {
             "detail": [
                 {

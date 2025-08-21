@@ -1,10 +1,12 @@
 import secrets
 import string
+from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.constants import LENGTH_GENERATED_PASSWORD
-from src.core.database import UsernameStr
+from src.constants import (LENGTH_GENERATED_PASSWORD, USERNAME_MAX_LENGTH,
+                           USERNAME_MIN_LENGTH)
+from src.core.config import settings
 
 
 def generate_password(length: int = LENGTH_GENERATED_PASSWORD) -> str:
@@ -13,8 +15,9 @@ def generate_password(length: int = LENGTH_GENERATED_PASSWORD) -> str:
     состоящий как минимум из одной строчной буквы,
     одной прописной буквы и трех цифр.
      """
-    if length < 8:
-        raise ValueError("Минимальная длина пароля должна быть 8 символов")
+    if length < settings.PASSWORD_MIN_LENGTH:
+        raise ValueError(
+            f"Минимальная длина пароля должна быть {settings.PASSWORD_MIN_LENGTH} символов")
     while True:
         password = "".join(secrets.choice(
             string.ascii_letters + string.digits) for _ in range(length))
@@ -28,7 +31,7 @@ def generate_password(length: int = LENGTH_GENERATED_PASSWORD) -> str:
 
 def validate_strong_password(v: str) -> str:
     """Проверка сложности пароля."""
-    if not v or len(v) < 8:
+    if not v or len(v) < settings.PASSWORD_MIN_LENGTH:
         raise ValueError(
             "Длина пароля должна быть не менее 8 символов")
     if any(c.isspace() for c in v):
@@ -48,15 +51,18 @@ def validate_strong_password(v: str) -> str:
 
 class TokenSchema(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
 
 
-class TokenDataSchema(BaseModel):
-    username: UsernameStr | None = None
+class TokenType(Enum):
+    BEARER = "Bearer"
+    REFRESH = "Refresh"
 
 
 class UserRegisterSchema(BaseModel):
-    username: str
+    username: str = Field(min_length=USERNAME_MIN_LENGTH,
+                          max_length=USERNAME_MAX_LENGTH)
     password: str | None = None
     is_password_generated: bool = False
 

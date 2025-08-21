@@ -1,7 +1,7 @@
 import factory
 from factory.alchemy import SQLAlchemyModelFactory
 
-from src.auth.models import ToDoUser
+from src.auth.models import User
 from src.common.models import Task
 from src.sharing.models import Share, SharedAccessEnum
 
@@ -10,13 +10,13 @@ class UserFactory(SQLAlchemyModelFactory):
     """Фабрика для создания тестовых пользователей."""
 
     class Meta:
-        model = ToDoUser
+        model = User
         sqlalchemy_session_persistence = "commit"
 
     username = factory.Sequence(lambda n: f"user{n}")
     email = factory.LazyAttribute(lambda obj: f"{obj.username}@example.com")
     password = factory.LazyFunction(
-        lambda: ToDoUser().set_password("Password123"))
+        lambda: User().set_password("Password123"))
     disabled = False
 
 

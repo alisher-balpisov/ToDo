@@ -88,13 +88,13 @@ def test_user2(db_session):
 
 @pytest.fixture
 def auth_headers(test_user):
-    token = test_user.get_token
+    token = test_user.token
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
 def auth_headers2(test_user2):
-    token = test_user2.get_token
+    token = test_user2.token
     return {"Authorization": f"Bearer {token}"}
 
 

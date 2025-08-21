@@ -2,7 +2,7 @@ import os
 
 from fastapi import HTTPException, UploadFile, status
 
-from src.auth.models import ToDoUser
+from src.auth.models import User
 from src.common.models import Task
 from src.constants import ALLOWED_EXTENSIONS, ALLOWED_TYPES, MAX_FILE_SIZE
 from src.exceptions import FILE_EMPTY
@@ -14,9 +14,9 @@ def get_task(session, task_id: int) -> Task:
     ).first()
 
 
-def get_task_user(session, task_id: int) -> ToDoUser:
-    return (session.query(ToDoUser)
-            .join(Task, Task.user_id == ToDoUser.id)
+def get_task_user(session, task_id: int) -> User:
+    return (session.query(User)
+            .join(Task, Task.user_id == User.id)
             .filter(Task.id == task_id)
             .one_or_none())
 

@@ -40,8 +40,8 @@ def setup_test_environment():
     """Автоматическая настройка тестового окружения."""
     # Устанавливаем переменные окружения для тестов
     with patch.dict(os.environ, {
-        "TODO_JWT_SECRET": "test_secret_key",
-        "TODO_JWT_ALG": "HS256",
+        "JWT_SECRET": "test_secret_key",
+        "JWT_ALGORITHM": "HS256",
         "TODO_JWT_EXP": "60",
         "DATABASE_HOSTNAME": "localhost",
         "DATABASE_CREDENTIALS": "test:test",
