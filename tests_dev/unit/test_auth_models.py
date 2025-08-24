@@ -4,6 +4,7 @@ import bcrypt
 import pytest
 
 from src.auth.models import User, hash_password
+from src.auth.schemas import TokenType
 
 
 class TestToDoUserModel:
@@ -47,7 +48,6 @@ class TestToDoUserModel:
         """Тест неуспешной проверки пароля."""
         user = User(username="testuser", email="test@example.com")
         user.set_password("correct_password")
-        print(user.verify_password("wrong_password"))
         assert not user.verify_password("wrong_password")
 
     def test_verify_password_empty(self):
@@ -61,7 +61,7 @@ class TestToDoUserModel:
     def test_token(self):
         """Тест генерации JWT токена."""
         user = User(username="testuser", email="test@example.com")
-        token = user.token
+        token = user.token()
 
         assert isinstance(token, str)
         assert len(token) > 0

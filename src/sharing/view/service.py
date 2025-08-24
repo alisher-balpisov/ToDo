@@ -1,7 +1,7 @@
 from src.auth.models import User
 from src.auth.service import get_user_by_id
 from src.common.models import Task
-from src.common.utils import (get_task, get_task_user, is_task_owner,
+from src.common.utils import (get_task, get_task_user, handler, is_task_owner,
                               map_sort_rules)
 from src.exceptions import LIST_EMPTY, TASK_ACCESS_FORBIDDEN, TASK_NOT_FOUND
 from src.sharing.helpers import SortSharedTasksRule, shared_tasks_sort_mapping
@@ -11,6 +11,7 @@ from src.sharing.service import (get_permission_level, get_user_shared_task,
                                  is_task_collaborator)
 
 
+@handler
 def get_shared_tasks_service(
     session,
     current_user_id: int,
@@ -41,6 +42,7 @@ def get_shared_tasks_service(
     return tasks_info
 
 
+@handler
 def get_shared_task_service(
         session,
         current_user_id: int,
@@ -54,6 +56,7 @@ def get_shared_task_service(
     return task, owner, permission_level
 
 
+@handler
 def get_task_collaborators_service(
         session,
         current_user_id: int,
@@ -99,6 +102,7 @@ def get_task_collaborators_service(
     return collaborators
 
 
+@handler
 def get_task_permissions_service(
         session,
         current_user_id: int,

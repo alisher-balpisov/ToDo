@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from src.auth.models import User
 from src.auth.service import CurrentUser, get_current_user
 from src.core.database import DbSession, PrimaryKey, get_db
-from src.core.exceptions import handle_server_exception
 
 from .service import (get_tasks_stats_service, search_tasks_service,
                       toggle_task_completion_status_service)
@@ -64,17 +63,11 @@ def toggle_task_completion_status(
         current_user: CurrentUser,
         task_id: PrimaryKey,
 ) -> dict:
-    try:
-        task = toggle_task_completion_status_service(session=session,
-                                                     current_user_id=current_user.id,
-                                                     task_id=task_id)
-        return {
-            "msg": "Статус задачи успешно изменён",
-            "task_id": task.id,
-            "new_status": task.completion_status,
-        }
-
-    except Exception as e:
-        session.rollback()
-        handle_server_exception(
-            e, "Ошибка сервера при изменении статуса задачи")
+    task = toggle_task_completion_status_service(session=session,
+                                                 current_user_id=current_user.id,
+                                                 task_id=task_id)
+    return {
+        "msg": "Статус задачи успешно изменён",
+        "task_id": task.id,
+        "new_status": task.completion_status,
+    }

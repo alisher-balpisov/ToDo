@@ -1,4 +1,5 @@
 import pytest
+from fastapi import HTTPException
 from jose import jwt
 
 from src.auth.schemas import UserRegisterSchema
@@ -56,7 +57,7 @@ class TestAuthService:
 
     def test_get_current_user_valid_token(self, db_session, test_user):
         """Тест получения текущего пользователя с валидным токеном."""
-        token = test_user.token
+        token = test_user.token()
 
         current_user = get_current_user(db_session, token)
 

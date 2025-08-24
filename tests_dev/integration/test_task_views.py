@@ -130,7 +130,6 @@ class TestTaskEndpoints:
         db_session.refresh(task2)
 
         response = client.get("/stats", headers=auth_headers)
-        print(response.json(), '<- resp')
 
         assert response.status_code == 200
         data = response.json()

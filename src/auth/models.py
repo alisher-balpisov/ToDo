@@ -23,7 +23,7 @@ class User(Base):
     is_active = Column(Boolean, default=True, nullable=False)
 
     # Счётчик неудачных попыток входа
-    failed_login_attempts = Column(Integer, default=0, server_default="0")
+    failed_login_attempts = Column(Integer, default=0)
     # Время, до которого пользователь заблокирован
     locked_until = Column(DateTime, nullable=True)
 
@@ -32,18 +32,24 @@ class User(Base):
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
                         onupdate=lambda: datetime.now(timezone.utc))
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        if self.failed_login_attempts is None:
+            self.failed_login_attempts = 0
+
     def verify_password(self, password: str) -> bool:
         """Проверка пароля с защитой от брутфорса."""
+        if not password:
+            return False
+
         now = datetime.now(timezone.utc)
-        # Проверка блокировки аккаунта
+
         if self.is_locked:
             return False
 
         is_valid = bcrypt.checkpw(
             password.encode(settings.DEFAULT_ENCODING), self.password_hash)
-
         if is_valid:
-            # Сброс счетчика при успешной авторизации
             self.failed_login_attempts = 0
             self.last_login = now
             self.locked_until = None
@@ -69,7 +75,7 @@ class User(Base):
             raise ValueError("Password cannot be empty")
         self.password_hash = hash_password(password)
 
-    def token(self, expiration: int, type: TokenType) -> str:
+    def token(self, expiration: int = settings.JWT_EXPIRATION_MINUTES, type: TokenType = TokenType.ACCESS) -> str:
         """Создание JWT токена."""
         now = datetime.now(timezone.utc)
         expire = now + timedelta(minutes=expiration)

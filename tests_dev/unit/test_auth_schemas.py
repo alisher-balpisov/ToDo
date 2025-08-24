@@ -15,7 +15,6 @@ class TestUserRegisterSchema:
         schema = UserRegisterSchema(**data)
 
         assert schema.username == "testuser"
-        print(schema.password, '<- pass')
         assert len(schema.password) >= 8
         assert any(c.isupper() for c in schema.password)
         assert any(c.islower() for c in schema.password)

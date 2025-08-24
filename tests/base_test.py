@@ -55,7 +55,7 @@ class TestAuthentication:
         invalid_data = {"username": "ab", "password": ""}
 
         expected_error = {
-            "detail": [{"msg": "Пользователь с таким username уже существует."}],
+            "detail": {"msg": "Пользователь с таким username уже существует."},
         }
 
         mock_response = Mock()
@@ -148,7 +148,7 @@ class TestAuthentication:
         mock_response = Mock()
         mock_response.status_code = 401
         mock_response.json.return_value = {
-            "detail": [{"msg": "Не удалось подтвердить учетные данные"}]
+            "detail": {"msg": "Не удалось подтвердить учетные данные"}
         }
         client.post.return_value = mock_response
 
@@ -187,7 +187,7 @@ class TestTasks:
         mock_response = Mock()
         mock_response.status_code = 400
         mock_response.json.return_value = {
-            "detail": [{"msg": "Имя задачи не задано"}]
+            "detail": {"msg": "Имя задачи не задано"}
         }
         client.post.return_value = mock_response
 
@@ -273,7 +273,7 @@ class TestTasks:
         mock_response = Mock()
         mock_response.status_code = 404
         mock_response.json.return_value = {
-            "detail": [{"msg": "Задача не найдена"}]
+            "detail": {"msg": "Задача не найдена"}
         }
         client.get.return_value = mock_response
 
@@ -419,7 +419,7 @@ class TestFileOperations:
         task_id = 1
 
         expected_error = {
-            "detail": [{"msg": "Недопустимое расширение файла: .exe"}]
+            "detail": {"msg": "Недопустимое расширение файла: .exe"}
         }
 
         mock_response = Mock()
@@ -455,7 +455,7 @@ class TestFileOperations:
         """Тест получения пустого файла."""
         task_id = 1
 
-        expected_error = {"detail": [{"msg": "файл пуст"}]}
+        expected_error = {"detail": {"msg": "файл пуст"}}
 
         mock_response = Mock()
         mock_response.status_code = 400
@@ -493,7 +493,7 @@ class TestSharing:
                       "permission_level": "view"}
 
         expected_error = {
-            "detail": [{"msg": "Пользователь 'nonexistent' не найден"}]
+            "detail": {"msg": "Пользователь не найден"}
         }
 
         mock_response = Mock()
@@ -697,7 +697,7 @@ class TestErrorHandling:
     def test_unauthorized_access(self, client):
         """Тест доступа без авторизации."""
         expected_error = {
-            "detail": [{"msg": "Не удалось подтвердить учетные данные"}]
+            "detail": {"msg": "Не удалось подтвердить учетные данные"}
         }
 
         mock_response = Mock()
@@ -712,7 +712,7 @@ class TestErrorHandling:
     def test_forbidden_access(self, client, auth_headers):
         """Тест доступа к запрещенным ресурсам."""
         expected_error = {
-            "detail": [{"msg": "Задача не найдена или не принадлежит вам"}]
+            "detail": {"msg": "Задача не найдена или не принадлежит вам"}
         }
 
         mock_response = Mock()
@@ -728,7 +728,7 @@ class TestErrorHandling:
     def test_server_error_handling(self, client, auth_headers):
         """Тест обработки ошибок сервера."""
         expected_error = {
-            "detail": [{"msg": "Ошибка сервера: Internal server error"}]
+            "detail": {"msg": "Ошибка сервера: Internal server error"}
         }
 
         mock_response = Mock()
@@ -781,7 +781,7 @@ def test_invalid_usernames(client, invalid_username):
     user_data = {"username": invalid_username, "password": "validpass123"}
 
     expected_error = {
-        "detail": [{"msg": "Пользователь с таким username уже существует."}],
+        "detail": {"msg": "Пользователь с таким username уже существует."},
     }
 
     mock_response = Mock()

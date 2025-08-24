@@ -4,11 +4,12 @@ from fastapi import status
 from sqlalchemy import or_
 
 from src.common.models import Task
-from src.common.utils import get_user_task
+from src.common.utils import get_user_task, handler, transactional
 from src.constants import MAX_SEARCH_QUERY, STATS_PERCENTAGE_PRECISION
 from src.exceptions import TASK_NOT_FOUND
 
 
+@handler
 def search_tasks_service(
         session,
         current_user_id: int,
@@ -19,7 +20,7 @@ def search_tasks_service(
     if len(search_query) > MAX_SEARCH_QUERY:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=[{"msg": "Слишком длинный поисковый запрос"}]
+            detail={"msg": "Слишком длинный поисковый запрос"}
         )
     search_pattern = f"%{search_query.strip()}%"
     tasks = (session.query(Task)
@@ -32,6 +33,7 @@ def search_tasks_service(
     return tasks
 
 
+@handler
 def get_tasks_stats_service(
         session,
         current_user_id: int
@@ -47,6 +49,8 @@ def get_tasks_stats_service(
     return total, completed, uncompleted, completion_percentage
 
 
+@handler
+@transactional
 def toggle_task_completion_status_service(
         session,
         current_user_id: int,
@@ -57,6 +61,4 @@ def toggle_task_completion_status_service(
         raise TASK_NOT_FOUND
 
     task.completion_status = not task.completion_status
-    session.commit()
-    session.refresh(task)
     return task

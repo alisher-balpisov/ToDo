@@ -1,12 +1,15 @@
 from datetime import datetime, timezone
 
 from src.common.models import Task
-from src.common.utils import get_user_task, map_sort_rules
+from src.common.utils import (get_user_task, handler, map_sort_rules,
+                              transactional)
 from src.exceptions import TASK_NAME_REQUIRED, TASK_NOT_FOUND
 from src.tasks.helpers import tasks_sort_mapping
 from src.tasks.schemas import SortTasksValidator
 
 
+@handler
+@transactional
 def create_task_service(
         session,
         current_user_id: int,
@@ -24,11 +27,10 @@ def create_task_service(
         user_id=current_user_id,
     )
     session.add(new_task)
-    session.commit()
-    session.refresh(new_task)
     return new_task
 
 
+@handler
 def get_tasks_service(
         session,
         current_user_id: int,
@@ -49,6 +51,7 @@ def get_tasks_service(
     return tasks
 
 
+@handler
 def get_task_service(
         session,
         current_user_id: int,
@@ -60,6 +63,8 @@ def get_task_service(
     return task
 
 
+@handler
+@transactional
 def update_task_service(
         session,
         current_user_id: int,
@@ -72,12 +77,11 @@ def update_task_service(
         raise TASK_NOT_FOUND
     task.name = name_update if name_update else task.name
     task.text = text_update if text_update else task.text
-
-    session.commit()
-    session.refresh(task)
     return task
 
 
+@handler
+@transactional
 def delete_task_service(
         session,
         current_user_id: int,
@@ -87,4 +91,3 @@ def delete_task_service(
     if not task:
         raise TASK_NOT_FOUND
     session.delete(task)
-    session.commit()

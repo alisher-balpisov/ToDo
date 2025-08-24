@@ -68,8 +68,7 @@ class TestSharingService:
             )
 
         assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == [
-            {"msg": "Пользователь 'nonexistent' не найден"}]
+        assert exc_info.value.detail == {"msg": "Пользователь не найден"}
 
     def test_share_task_service_already_shared(self, db_session, test_user, test_user2, shared_task):
         """Тест предоставления доступа к уже расшаренной задаче."""
@@ -96,9 +95,8 @@ class TestSharingService:
                 target_username=test_user.username,
                 permission_level=SharedAccessEnum.view
             )
-        print(exc_info.value, '<-test')
         # Проверяем сообщение об ошибке
-        assert {"msg": "Нельзя делиться задачей с самим собой"} in exc_info.value.detail
+        assert {"msg": "Нельзя делиться задачей с самим собой"} == exc_info.value.detail
 
     def test_unshare_task_service_success(self, db_session, test_user, test_user2, shared_task):
         """Тест успешного отзыва доступа к задаче."""

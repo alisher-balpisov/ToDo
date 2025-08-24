@@ -3,13 +3,15 @@ import mimetypes
 from fastapi import HTTPException, UploadFile, status
 
 from src.common.models import Task
-from src.common.utils import validate_and_read_file
+from src.common.utils import handler, transactional, validate_and_read_file
 from src.constants import CONTENT_TYPE_OCTET_STREAM
 from src.exceptions import FILE_EMPTY, TASK_NOT_FOUND
 from src.sharing.models import SharedAccessEnum
 from src.sharing.service import get_permission_level, get_user_shared_task
 
 
+@handler
+@transactional
 async def upload_file_to_shared_task_service(
     session,
     current_user_id: int,
@@ -23,26 +25,25 @@ async def upload_file_to_shared_task_service(
     if get_permission_level(session, current_user_id, task_id) is not SharedAccessEnum.edit:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=[{"msg": "Нет доступа для редактирования задачи"}]
+            detail={"msg": "Нет доступа для редактирования задачи"}
         )
 
     file_data = await validate_and_read_file(uploaded_file)
     task.file_data = file_data
     task.file_name = uploaded_file.filename
-    session.commit()
 
 
+@handler
 def get_shared_task_file_service(
-        session,
-        current_user_id: int,
-        task_id: int
+    session,
+    current_user_id: int,
+    task_id: int
 ) -> tuple[Task, str]:
     task = get_user_shared_task(session, current_user_id, task_id)
     if not task:
         raise TASK_NOT_FOUND
     if not task.file_data:
         raise FILE_EMPTY
-
     mime_type, _ = mimetypes.guess_type(task.file_name or "")
 
     return task, mime_type or CONTENT_TYPE_OCTET_STREAM

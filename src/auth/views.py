@@ -64,7 +64,7 @@ def change_password(
     if not current_user.verify_password(password_update.current_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=[{"msg": "Неверный текущий пароль"}],
+            detail={"msg": "Неверный текущий пароль"},
         )
     try:
         current_user.set_password(password_update.new_password)
@@ -73,7 +73,7 @@ def change_password(
         session.rollback()
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=[{"msg": str(e)}],
+            detail={"msg": str(e)},
         ) from e
 
     return {"msg": "Пароль успешно изменён"}

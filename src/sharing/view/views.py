@@ -4,7 +4,6 @@ from fastapi import APIRouter, HTTPException, Query
 
 from src.auth.service import CurrentUser
 from src.core.database import DbSession, PrimaryKey
-from src.core.exceptions import handle_server_exception
 from src.sharing.helpers import SortSharedTasksRule
 
 from .service import (get_shared_task_service, get_shared_tasks_service,

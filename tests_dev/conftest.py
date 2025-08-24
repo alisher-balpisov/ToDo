@@ -17,12 +17,11 @@ from src.tasks.crud.service import create_task_service
 # -------------------------
 # Конфигурация тестовой БД
 # -------------------------
-SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
     connect_args={"check_same_thread": False},
-    poolclass=StaticPool
 )
 
 TestingSessionLocal = sessionmaker(
@@ -34,8 +33,8 @@ TestingSessionLocal = sessionmaker(
 # Переопределение зависимости БД
 # -------------------------
 def override_get_db():
+    db = TestingSessionLocal()
     try:
-        db = TestingSessionLocal()
         yield db
     finally:
         db.close()
@@ -88,13 +87,13 @@ def test_user2(db_session):
 
 @pytest.fixture
 def auth_headers(test_user):
-    token = test_user.token
+    token = test_user.token()
     return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
 def auth_headers2(test_user2):
-    token = test_user2.token
+    token = test_user2.token()
     return {"Authorization": f"Bearer {token}"}
 
 

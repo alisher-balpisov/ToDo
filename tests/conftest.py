@@ -5,6 +5,7 @@ from typing import Any, Dict, Generator
 from unittest.mock import MagicMock, Mock
 
 import pytest
+
 from src.core.config import settings
 
 
@@ -188,9 +189,9 @@ def api_responses():
     return {
         "success": {"msg": "Операция выполнена успешно"},
         "created": {"msg": "Ресурс создан успешно"},
-        "not_found": {"detail": [{"msg": "Задача не найдена"}]},
-        "unauthorized": {"detail": [{"msg": "Не удалось подтвердить учетные данные"}]},
-        "forbidden": {" ": [{"msg": "Задача не найдена или не принадлежит вам"}]},
+        "not_found": {"detail": {"msg": "Задача не найдена"}},
+        "unauthorized": {"detail": {"msg": "Не удалось подтвердить учетные данные"}},
+        "forbidden": {" ": {"msg": "Задача не найдена или не принадлежит вам"}},
         "validation_error": {
             "detail": [
                 {
@@ -200,10 +201,10 @@ def api_responses():
                 }
             ]
         },
-        "user_not_found": {"detail": [{"msg": "Пользователь 'username' не найден"}]},
-        "task_already_shared": {"detail": [{"msg": "Доступ к задаче уже предоставлен пользователю 'username'"}]},
-        "file_empty": {"detail": [{"msg": "файл пуст"}]},
-        "invalid_file_extension": {"detail": [{"msg": "Недопустимое расширение файла: .exe"}]}
+        "user_not_found": {"detail": {"msg": "Пользователь не найден"}},
+        "task_already_shared": {"detail": {"msg": "Доступ к задаче уже предоставлен пользователю 'username'"}},
+        "file_empty": {"detail": {"msg": "файл пуст"}},
+        "invalid_file_extension": {"detail": {"msg": "Недопустимое расширение файла: .exe"}}
     }
 
 

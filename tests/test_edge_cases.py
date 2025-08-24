@@ -7,7 +7,7 @@ class TestEdgeCases:
 
         client.post.return_value.status_code = 422
         client.post.return_value.json.return_value = {
-            "detail": [{"loc": ["body", "name"], "msg": "field required"}]
+            "detail": {"loc": ["body", "name"], "msg": "field required"}
         }
 
         response = client.post("/tasks/", json=task_data, headers=auth_headers)
