@@ -1,12 +1,10 @@
 import os
 import shutil
 import tempfile
-from typing import Any, Dict, Generator
+from typing import Generator
 from unittest.mock import MagicMock, Mock
 
 import pytest
-
-from src.core.config import settings
 
 
 @pytest.fixture

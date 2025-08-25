@@ -1,7 +1,5 @@
 from typing import ClassVar
 
-from fastapi import Query
-
 from src.common.schemas import BaseSortValidator
 
 from .helpers import SortTasksRule

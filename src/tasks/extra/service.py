@@ -1,12 +1,10 @@
-from http.client import HTTPException
-
-from fastapi import status
 from sqlalchemy import or_
 
+from src.common.constants import MAX_SEARCH_QUERY, STATS_PERCENTAGE_PRECISION
 from src.common.models import Task
-from src.common.utils import get_user_task, handler, transactional
-from src.constants import MAX_SEARCH_QUERY, STATS_PERCENTAGE_PRECISION
-from src.exceptions import TASK_NOT_FOUND
+from src.common.utils import get_user_task
+from src.core.decorators import handler, transactional
+from src.core.exception import InvalidInputException, ResourceNotFoundException
 
 
 @handler
@@ -15,13 +13,12 @@ def search_tasks_service(
         current_user_id: int,
         search_query: str,
 ) -> list[Task]:
-    if not search_query or not search_query.strip():
+    if not search_query.strip():
         return []
     if len(search_query) > MAX_SEARCH_QUERY:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"msg": "Слишком длинный поисковый запрос"}
-        )
+        raise InvalidInputException(
+            "поисковый запрос", search_query[0:20] + "...", "запрос не длиннее максимума")
+
     search_pattern = f"%{search_query.strip()}%"
     tasks = (session.query(Task)
              .filter(
@@ -57,8 +54,8 @@ def toggle_task_completion_status_service(
         task_id: int,
 ) -> Task:
     task = get_user_task(session, current_user_id, task_id)
-    if not task:
-        raise TASK_NOT_FOUND
+    if task is None:
+        raise ResourceNotFoundException("Задача", task_id)
 
     task.completion_status = not task.completion_status
     return task

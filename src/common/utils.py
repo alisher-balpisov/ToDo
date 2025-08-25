@@ -1,15 +1,13 @@
-import logging
 import os
-from functools import wraps
 
-from fastapi import HTTPException, UploadFile, status
-from sqlalchemy.orm import Session
+from fastapi import UploadFile
 
 from src.auth.models import User
 from src.common.models import Task
-from src.constants import ALLOWED_TYPES
 from src.core.config import settings
-from src.exceptions import FILE_EMPTY
+from src.core.exception import (InvalidInputException, MissingRequiredFieldException,
+                          ValidationException)
+
 
 
 def get_task(session, task_id: int) -> Task:
@@ -48,85 +46,29 @@ def map_sort_rules(sort: list, sort_mapping) -> list:
 async def validate_and_read_file(uploaded_file: UploadFile) -> bytes:
     filename = uploaded_file.filename
     if not filename:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"msg": "Файл не имеет имени"},
-        )
+        raise MissingRequiredFieldException("имя файла")
 
     safe_filename = os.path.basename(filename.strip())
     if safe_filename != filename.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"msg": "Недопустимое имя файла"},
-        )
+        raise InvalidInputException(
+            "имя файла", filename, "допустимое имя файла")
 
-    ext = os.path.splitext(filename)[1].lower()
-    if ext not in settings.ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail={"msg": f"Недопустимое расширение файла: {ext}"},
-        )
+    extension = os.path.splitext(filename)[1].lower()
+    if extension not in settings.ALLOWED_EXTENSIONS:
+        raise InvalidInputException(
+            "расширение файла", extension, "допустимое расширение")
 
-    if uploaded_file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-            detail={"msg": f"Недопустимый тип файла: {uploaded_file.content_type}"}
-        )
+    if uploaded_file.content_type not in settings.ALLOWED_TYPES:
+        raise InvalidInputException(
+            "тип файла", uploaded_file.content_type, "допустимый тип файла")
 
     file_data = await uploaded_file.read()
 
     if not file_data:
-        raise FILE_EMPTY
+        raise InvalidInputException("файл", "пустой файл", "непустой файл")
 
     if len(file_data) > settings.MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail={
-                "msg": f"Размер файла превышает максимально допустимый ({settings.MAX_FILE_SIZE_MB}MB)"},
-        )
+        raise ValidationException(
+            f"Размер файла превышает максимально допустимый ({settings.MAX_FILE_SIZE_MB}MB)")
 
     return file_data
-
-logger = logging.getLogger(__name__)
-
-
-def handler(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        try:
-            return func(*args, **kwargs)
-        except Exception as e:
-            # Логируем с полным стеком
-            logger.exception("[handler] Ошибка в '%s': %s",
-                             func.__name__, str(e), exc_info=True)
-            raise
-    return wrapper
-
-
-def transactional(func):
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        session = kwargs.get("session")
-        if session is None and args:
-            session = args[0]
-
-        if session is None:
-            raise ValueError(
-                f"[transactional] В функции '{func.__name__}' не найден аргумент 'session'. "
-                f"Передайте его как первый позиционный аргумент или keyword-аргумент."
-            )
-
-        if not isinstance(session, Session):
-            raise TypeError(
-                f"[transactional] В функции '{func.__name__}' ожидается объект класса 'Session', "
-                f"но получен {type(session).__name__}."
-            )
-
-        try:
-            result = func(*args, **kwargs)
-            session.commit()
-            return result
-        except Exception:
-            session.rollback()
-            raise
-    return wrapper

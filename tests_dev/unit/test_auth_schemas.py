@@ -3,7 +3,7 @@ from pydantic import ValidationError
 
 from src.auth.schemas import (UserPasswordUpdateSchema, UserRegisterSchema,
                               generate_password, validate_strong_password)
-from src.constants import LENGTH_GENERATED_PASSWORD
+from src.common.constants import LENGTH_GENERATED_PASSWORD
 
 
 class TestUserRegisterSchema:

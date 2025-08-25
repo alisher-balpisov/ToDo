@@ -2,7 +2,6 @@ from datetime import datetime
 
 import pytest
 
-from src.exceptions import TASK_NAME_REQUIRED, TASK_NOT_FOUND
 from src.tasks.crud.service import (create_task_service, delete_task_service,
                                     get_task_service, get_tasks_service,
                                     update_task_service)

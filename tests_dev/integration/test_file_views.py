@@ -1,8 +1,5 @@
 import io
 
-import pytest
-from fastapi import UploadFile
-
 
 class TestFileEndpoints:
     """Интеграционные тесты работы с файлами."""

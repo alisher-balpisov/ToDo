@@ -1,9 +1,9 @@
 from datetime import datetime, timezone
 
 from src.common.models import Task
-from src.common.utils import (get_user_task, handler, map_sort_rules,
-                              transactional)
-from src.exceptions import TASK_NAME_REQUIRED, TASK_NOT_FOUND
+from src.common.utils import get_user_task, map_sort_rules
+from src.core.decorators import handler, transactional
+from src.core.exception import MissingRequiredFieldException
 from src.tasks.helpers import tasks_sort_mapping
 from src.tasks.schemas import SortTasksValidator
 
@@ -16,8 +16,8 @@ def create_task_service(
         task_name: str | None,
         task_text: str | None
 ) -> Task:
-    if task_name is None or task_name.strip() == '':
-        raise TASK_NAME_REQUIRED
+    if not task_name.strip():
+        raise MissingRequiredFieldException("имя задачи")
 
     new_task = Task(
         name=task_name,
@@ -58,8 +58,8 @@ def get_task_service(
         task_id: int
 ) -> Task:
     task = get_user_task(session, current_user_id, task_id)
-    if not task:
-        raise TASK_NOT_FOUND
+    if task is None:
+        raise ResourceNotFoundException("Задача", task_id)
     return task
 
 
@@ -73,8 +73,8 @@ def update_task_service(
         text_update: str | None
 ) -> Task:
     task = get_user_task(session, current_user_id, task_id)
-    if not task:
-        raise TASK_NOT_FOUND
+    if task is None:
+        raise ResourceNotFoundException("Задача", task_id)
     task.name = name_update if name_update else task.name
     task.text = text_update if text_update else task.text
     return task
@@ -88,6 +88,6 @@ def delete_task_service(
         task_id: int
 ) -> None:
     task = get_user_task(session, current_user_id, task_id)
-    if not task:
-        raise TASK_NOT_FOUND
+    if task is None:
+        raise ResourceNotFoundException("Задача", task_id)
     session.delete(task)

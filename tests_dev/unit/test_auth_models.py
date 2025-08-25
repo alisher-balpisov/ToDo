@@ -1,10 +1,7 @@
-import os
-
 import bcrypt
 import pytest
 
 from src.auth.models import User, hash_password
-from src.auth.schemas import TokenType
 
 
 class TestToDoUserModel:

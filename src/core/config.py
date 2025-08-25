@@ -1,9 +1,11 @@
 # src/core/config.py
 import secrets
-from typing import Literal
+from typing import ClassVar, Literal
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+MIN_LEN_JWT_SECRET = 32
 
 
 class Settings(BaseSettings):
@@ -19,7 +21,7 @@ class Settings(BaseSettings):
     JWT_EXPIRATION_MINUTES: int = 60
     JWT_REFRESH_EXPIRATION_MINUTES: int = 10080   # 7 дней
     DEFAULT_ENCODING: str = "utf-8"
-
+    MIN_LEN_JWT_SECRET: ClassVar[int] = 32
     # Database
     DATABASE_URL: str | None = None
 
@@ -27,7 +29,7 @@ class Settings(BaseSettings):
     DATABASE_HOSTNAME: str = "localhost"
     DATABASE_PORT: int = 5432
     DATABASE_USER: str = "postgres"
-    DATABASE_PASSWORD: str = "200614"
+    DATABASE_PASSWORD: str
     DATABASE_NAME: str = "base_db"
     DATABASE_ECHO: bool = False
 
@@ -55,6 +57,10 @@ class Settings(BaseSettings):
     ALLOWED_EXTENSIONS: tuple[str, ...] = Field(
         default_factory=lambda: (".txt", ".pdf", ".png", ".jpg", ".jpeg")
     )
+    ALLOWED_TYPES: tuple[str, ...] = Field(
+        default_factory=lambda: (
+            "image/png", "image/jpeg", "application/pdf", "text/plain")
+    )
 
     # CORS
     CORS_ORIGINS: list[str] = Field(
@@ -63,16 +69,15 @@ class Settings(BaseSettings):
     )
 
     # Environment (режим работы приложения)
-
     ENVIRONMENT: Literal[
         "development", "production", "testing"] = "development"
 
     @field_validator("JWT_SECRET")
     def validate_jwt_secret(cls, v):
         """Проверка, что ключ достаточно длинный для безопасности."""
-        if len(v) < 32:
+        if len(v) < cls.MIN_LEN_JWT_SECRET:
             raise ValueError(
-                "JWT_SECRET должен содержать не менее 32 символов")
+                f"JWT_SECRET должен содержать не менее {cls.MIN_LEN_JWT_SECRET} символов")
         return v
 
     model_config = SettingsConfigDict(

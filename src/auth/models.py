@@ -4,10 +4,11 @@ import bcrypt
 from jose import jwt
 from sqlalchemy import Boolean, Column, DateTime, Integer, LargeBinary, String
 
-from src.auth.schemas import TokenType
-from src.constants import USERNAME_MAX_LENGTH
+from src.common.constants import USERNAME_MAX_LENGTH
+from src.common.enums import TokenType
 from src.core.config import settings
 from src.core.database import Base
+from src.core.exception import MissingRequiredFieldException
 
 from .utils import hash_password
 
@@ -71,8 +72,8 @@ class User(Base):
 
     def set_password(self, password: str) -> None:
         """Установите новый пароль для пользователя."""
-        if not password:
-            raise ValueError("Password cannot be empty")
+        if not password.strip():
+            raise MissingRequiredFieldException("новый пароль")
         self.password_hash = hash_password(password)
 
     def token(self, expiration: int = settings.JWT_EXPIRATION_MINUTES, type: TokenType = TokenType.ACCESS) -> str:

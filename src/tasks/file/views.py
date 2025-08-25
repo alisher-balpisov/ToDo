@@ -1,10 +1,9 @@
 from io import BytesIO
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
 from fastapi.responses import StreamingResponse
 
-from src.auth.service import CurrentUser
-from src.core.database import DbSession, PrimaryKey, UploadedFile
+from src.core.types import CurrentUser, DbSession, PrimaryKey, UploadedFile
 
 from .service import get_task_file_service, upload_file_to_task_service
 

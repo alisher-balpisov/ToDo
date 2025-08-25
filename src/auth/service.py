@@ -1,15 +1,19 @@
 from datetime import datetime, timezone
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from jose import ExpiredSignatureError, JWTError, jwt
+from sqlalchemy.orm import Session
 
-from src.auth.schemas import TokenType
-from src.common.utils import handler, transactional
+from src.common.enums import TokenType
 from src.core.config import settings
-from src.core.database import DbSession
-from src.exceptions import USER_NOT_FOUND
+from src.core.database import get_db
+from src.core.decorators import handler, transactional
+from src.core.exception import (AuthenticationException, InvalidCredentialsException,
+                          ResourceNotFoundException, TokenExpiredException,
+                          ValidationException)
+
 
 from .models import User
 from .utils import hash_password
@@ -43,31 +47,24 @@ def verify_token(token: str, expected_type: TokenType | None = None) -> dict:
                      "verify_signature": True}
         )
 
-        iat = payload.get("iat")
-        if iat and datetime.fromtimestamp(iat, timezone.utc) > datetime.now(timezone.utc):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={"msg": "Токен выдан в будущем"}
-            )
+        if "sub" not in payload or "type" not in payload:
+            raise InvalidCredentialsException("некорректная структура токена")
 
-        if expected_type and payload.get("type") != expected_type:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail={
-                    "msg": f"Ожидался токен типа '{expected_type}', получен '{payload.get('type')}'"}
-            )
+        iat = payload.get("iat")
+        if iat and isinstance(iat, (int, float)):
+            if datetime.fromtimestamp(iat, timezone.utc) > datetime.now(timezone.utc):
+                raise InvalidCredentialsException("токен выдан в будущем")
+
+        actual_type = payload.get("type")
+        if expected_type and actual_type != expected_type:
+            raise InvalidCredentialsException(
+                f"Ожидался токен типа '{expected_type}', получен '{actual_type}'")
         return payload
 
     except ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"msg": "Токен истек"}
-        )
+        raise TokenExpiredException("access")
     except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"msg": "Недействительный токен"}
-        )
+        raise InvalidCredentialsException()
 
 
 @handler
@@ -78,16 +75,12 @@ def register_service(
         password: str,
         email: str | None = None
 ) -> None:
+    USER_DATA_ERROR = ValidationException(
+        "Пользователь с такими данными уже существует или введенные данные некорректны")
     if get_user_by_username(session=session, username=username):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"msg": "Пользователь с таким username уже существует."},
-        )
+        raise USER_DATA_ERROR
     if email is not None and get_user_by_email(session=session, email=email):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail={"msg": "Пользователь с таким email уже существует."},
-        )
+        raise USER_DATA_ERROR
 
     password_hash = hash_password(password)
 
@@ -106,25 +99,16 @@ def login_service(
         password: str
 ) -> tuple[str, str]:
     user = get_user_by_username(session=session, username=username)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"msg": "Неверное имя пользователя или пароль"},
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    if user is None:
+        raise InvalidCredentialsException(username)
+
     if user.is_locked:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "msg": f"Аккаунт заблокирован до {user.locked_until.isoformat()}"},
-        )
+        raise AuthenticationException(
+            f"Учётная запись временно заблокирована до {user.locked_until.isoformat()}")
     if not user.verify_password(password):
         session.commit()
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"msg": "Неверное имя пользователя или пароль"},
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        raise InvalidCredentialsException(username)
+
     access_token = user.token(
         settings.JWT_EXPIRATION_MINUTES, TokenType.ACCESS)
     refresh_token = user.token(
@@ -132,22 +116,19 @@ def login_service(
     return access_token, refresh_token
 
 
-def check_user_or_raise(user: User | None) -> None:
+def get_user_or_raise(session, username: str):
     """Проверяет состояние пользователя и выбрасывает исключения при проблемах."""
-    if not user:
-        raise USER_NOT_FOUND
+    user = get_user_by_username(session, username)
+    if user is None:
+        raise ResourceNotFoundException("Пользователь", username)
 
     if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"msg": "Учетная запись пользователя отключена"}
-        )
+        raise AuthenticationException("Учетная запись пользователя отключена")
 
     if user.is_locked:
-        raise HTTPException(
-            status_code=status.HTTP_423_LOCKED,
-            detail={"msg": "Учетная запись временно заблокирована"}
-        )
+        raise AuthenticationException(
+            f"Учётная запись временно заблокирована до {user.locked_until.isoformat()}")
+    return user
 
 
 def refresh_service(
@@ -156,8 +137,7 @@ def refresh_service(
 ):
     payload = verify_token(token, TokenType.REFRESH)
     username = payload.get("sub")
-    user = get_user_by_username(session, username)
-    check_user_or_raise(user)
+    user = get_user_or_raise(session, username)
 
     access_token = user.token(
         settings.JWT_EXPIRATION_MINUTES, TokenType.ACCESS)
@@ -167,22 +147,11 @@ def refresh_service(
 
 
 def get_current_user(
-        session: DbSession,
+        session: Annotated[Session, Depends(get_db)],
         token: Annotated[str, Depends(oauth2_scheme)]
 ) -> User:
     payload = verify_token(token, TokenType.ACCESS)
     username = payload.get("sub")
     user = get_user_by_username(session, username)
-    check_user_or_raise(user)
+    get_user_or_raise(user)
     return user
-
-
-CurrentUser = Annotated[User, Depends(get_current_user)]
-
-
-def credentials_exception():
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail={"msg": "Не удалось подтвердить учетные данные"},
-        headers={"WWW-Authenticate": "Bearer"}
-    )

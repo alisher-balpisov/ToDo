@@ -1,10 +1,9 @@
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Query, status
 
-from src.auth.service import CurrentUser
 from src.common.schemas import TaskSchema
-from src.core.database import DbSession, PrimaryKey
+from src.core.types import CurrentUser, DbSession, PrimaryKey
 from src.tasks.helpers import SortTasksRule
 
 from .service import (create_task_service, delete_task_service,

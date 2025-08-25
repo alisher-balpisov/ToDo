@@ -3,9 +3,8 @@ from fastapi import HTTPException
 from jose import jwt
 
 from src.auth.schemas import UserRegisterSchema
-from src.auth.service import (credentials_exception, get_current_user,
-                              get_user_by_id, get_user_by_username,
-                              register_service)
+from src.auth.service import (get_current_user, get_user_by_id,
+                              get_user_by_username, register_service)
 from src.core.config import settings
 
 
@@ -81,11 +80,3 @@ class TestAuthService:
 
         with pytest.raises(HTTPException):  # credentials_exception
             get_current_user(db_session, expired_token)
-
-    def test_credentials_exception(self):
-        """Тест исключения для неавторизованных пользователей."""
-        with pytest.raises(HTTPException) as exc_info:
-            credentials_exception()
-
-        # Проверяем, что это HTTPException с кодом 401
-        assert exc_info.value.status_code == 401

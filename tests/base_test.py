@@ -1,11 +1,7 @@
 import io
-import json
-from typing import Any, Dict
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock
 
 import pytest
-from fastapi import status
-from fastapi.testclient import TestClient
 
 
 @pytest.fixture
@@ -70,7 +66,6 @@ class TestAuthentication:
 
     def test_login_user_success(self, client, user_data):
         """Тест успешного входа пользователя."""
-        # Правильный формат для OAuth2PasswordRequestForm
         login_data = {
             "username": user_data["username"],
             "password": user_data["password"]

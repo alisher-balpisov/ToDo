@@ -1,7 +1,5 @@
-import enum
 from typing import ClassVar
 
-from fastapi import Query
 from pydantic import BaseModel, Field
 
 from src.common.schemas import BaseSortValidator

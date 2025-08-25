@@ -2,9 +2,8 @@ from typing import Any
 
 from fastapi import APIRouter
 
-from src.auth.service import CurrentUser
 from src.common.schemas import TaskSchema
-from src.core.database import DbSession, PrimaryKey, UsernameStr
+from src.core.types import CurrentUser, DbSession, PrimaryKey, UsernameStr
 from src.sharing.models import SharedAccessEnum
 
 from .service import (toggle_shared_task_completion_status_service,

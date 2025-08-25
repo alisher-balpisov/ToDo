@@ -1,10 +1,9 @@
 import pytest
 
-from src.exceptions import task_already_shared
+from src.core.exception import ResourceAlreadyExistsException
 from src.sharing.models import SharedAccessEnum
-from src.sharing.service import (get_permission_level, get_share_record,
-                                 get_user_shared_task, is_already_shared,
-                                 is_sharing_with_self)
+from src.sharing.service import (get_permission_level, get_user_shared_task,
+                                 is_already_shared, is_sharing_with_self)
 from src.sharing.share.service import share_task_service, unshare_task_service
 
 
@@ -81,7 +80,8 @@ class TestSharingService:
                 permission_level=SharedAccessEnum.view
             )
 
-        expected_exc = task_already_shared(test_user2.username)
+        expected_exc = ResourceAlreadyExistsException(
+            "Доступ к задаче", test_user2.username)
         assert exc_info.value.status_code == expected_exc.status_code
         assert exc_info.value.detail == expected_exc.detail
 

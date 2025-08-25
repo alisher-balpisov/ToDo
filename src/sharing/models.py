@@ -1,17 +1,11 @@
-import enum
 from datetime import datetime, timezone
 
-from sqlalchemy import (Column, DateTime, Enum, ForeignKey, Integer,
-                        UniqueConstraint)
+from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer
 
 from src.auth.models import User
 from src.common.models import Task
 from src.core.database import Base
-
-
-class SharedAccessEnum(enum.Enum):
-    view = "view"
-    edit = "edit"
+from src.common.enums import SharedAccessEnum
 
 
 class Share(Base):

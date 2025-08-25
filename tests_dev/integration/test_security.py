@@ -1,6 +1,3 @@
-from shlex import quote
-
-
 class TestSecurity:
     """Интеграционные тесты безопасности."""
 

@@ -1,9 +1,10 @@
 from src.auth.models import User
 from src.auth.service import get_user_by_id
 from src.common.models import Task
-from src.common.utils import (get_task, get_task_user, handler, is_task_owner,
+from src.common.utils import (get_task, get_task_user, is_task_owner,
                               map_sort_rules)
-from src.exceptions import LIST_EMPTY, TASK_ACCESS_FORBIDDEN, TASK_NOT_FOUND
+from src.core.decorators import handler
+
 from src.sharing.helpers import SortSharedTasksRule, shared_tasks_sort_mapping
 from src.sharing.models import Share, SharedAccessEnum
 from src.sharing.schemas import SortSharedTasksValidator
@@ -37,7 +38,7 @@ def get_shared_tasks_service(
 
     tasks_info = tasks_info.offset(skip).limit(limit).all()
     if not tasks_info:
-        raise LIST_EMPTY
+        raise ResourceNotFoundException("Список", "данные")
 
     return tasks_info
 
@@ -49,8 +50,8 @@ def get_shared_task_service(
         task_id: int
 ) -> tuple:
     task = get_user_shared_task(session, current_user_id, task_id)
-    if not task:
-        raise TASK_NOT_FOUND
+    if task is None:
+        raise ResourceNotFoundException("Задача", task_id)
     owner = get_task_user(session, task_id)
     permission_level = get_permission_level(session, current_user_id, task_id)
     return task, owner, permission_level
@@ -63,13 +64,14 @@ def get_task_collaborators_service(
         task_id: int,
 ) -> list[dict]:
     task = get_task(session, task_id)
-    if not task:
-        raise TASK_NOT_FOUND
+    if task is None:
+        raise ResourceNotFoundException("Задача", task_id)
 
     is_owner = is_task_owner(session, current_user_id, task_id)
-    if not is_owner:
-        if not is_task_collaborator(session, current_user_id, task_id):
-            raise TASK_ACCESS_FORBIDDEN
+    is_collaborator = is_task_collaborator(session, current_user_id, task_id)
+    if not is_owner and not is_collaborator:
+        raise InsufficientPermissionsException(
+            "доступ к задаче", "пользователь")
 
     collaborators = []
     owner = get_user_by_id(session, task.user_id)
@@ -107,21 +109,21 @@ def get_task_permissions_service(
         session,
         current_user_id: int,
         task_id: int
-) -> tuple:
+) -> tuple[Task, SharedAccessEnum, dict]:
     task = get_task(session, task_id)
-    if not task:
-        raise TASK_NOT_FOUND
+    if task is None:
+        raise ResourceNotFoundException("Задача", task_id)
     is_owner = is_task_owner(session, current_user_id, task_id)
-    is_collaborator = is_task_collaborator(session, current_user_id, task_id)
     permission_level = get_permission_level(session, current_user_id, task_id)
+    can_edit_level = is_owner or permission_level == SharedAccessEnum.edit
 
     permissions = {
         "can_view": True,
-        "can_edit": is_owner or permission_level == SharedAccessEnum.edit,
+        "can_edit": can_edit_level,
         "can_delete": is_owner,
         "can_share": is_owner,
-        "can_upload_files": is_owner or permission_level == SharedAccessEnum.edit,
-        "can_change_status": is_owner or permission_level == SharedAccessEnum.edit,
+        "can_upload_files": can_edit_level,
+        "can_change_status": can_edit_level,
         "is_owner": is_owner,
     }
 

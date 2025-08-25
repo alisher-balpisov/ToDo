@@ -1,12 +1,13 @@
 import secrets
 import string
-from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from src.constants import (LENGTH_GENERATED_PASSWORD, USERNAME_MAX_LENGTH,
-                           USERNAME_MIN_LENGTH)
+from src.common.constants import (LENGTH_GENERATED_PASSWORD,
+                                  USERNAME_MAX_LENGTH, USERNAME_MIN_LENGTH)
 from src.core.config import settings
+from src.core.exception import (InvalidInputException,
+                                MissingRequiredFieldException)
 
 
 def generate_password(length: int = LENGTH_GENERATED_PASSWORD) -> str:
@@ -16,8 +17,8 @@ def generate_password(length: int = LENGTH_GENERATED_PASSWORD) -> str:
     одной прописной буквы и трех цифр.
      """
     if length < settings.PASSWORD_MIN_LENGTH:
-        raise ValueError(
-            f"Минимальная длина пароля должна быть {settings.PASSWORD_MIN_LENGTH} символов")
+        raise InvalidInputException(
+            "пароль", "короткий пароль", f"минимум {settings.PASSWORD_MIN_LENGTH} символов")
     while True:
         password = "".join(secrets.choice(
             string.ascii_letters + string.digits) for _ in range(length))
@@ -32,20 +33,20 @@ def generate_password(length: int = LENGTH_GENERATED_PASSWORD) -> str:
 def validate_strong_password(v: str) -> str:
     """Проверка сложности пароля."""
     if not v or len(v) < settings.PASSWORD_MIN_LENGTH:
-        raise ValueError(
-            "Длина пароля должна быть не менее 8 символов")
+        raise InvalidInputException(
+            "пароль", "короткий пароль", f"минимум {settings.PASSWORD_MIN_LENGTH} символов")
     if any(c.isspace() for c in v):
-        raise ValueError(
-            "Пароль не должен содержать пробелы")
+        raise InvalidInputException(
+            "пароль", "пароль с пробелами", "пароль без пробелов")
     if not any(c.isdigit() for c in v):
-        raise ValueError(
-            "Пароль должен содержать хотя бы одну цифру")
+        raise InvalidInputException(
+            "пароль", "пароль без цифр", "пароль с цифрами")
     if not any(c.isupper() for c in v):
-        raise ValueError(
-            "Пароль должен содержать хотя бы одну заглавную букву")
+        raise InvalidInputException(
+            "пароль", "пароль без заглавных", "пароль с заглавными буквами")
     if not any(c.islower() for c in v):
-        raise ValueError(
-            "Пароль должен содержать хотя бы одну строчную букву")
+        raise InvalidInputException(
+            "пароль", "пароль без строчных", "пароль со строчными буквами")
     return v
 
 
@@ -53,11 +54,6 @@ class TokenSchema(BaseModel):
     access_token: str
     refresh_token: str
     type: str
-
-
-class TokenType(str, Enum):
-    ACCESS = "Access"
-    REFRESH = "Refresh"
 
 
 class UserRegisterSchema(BaseModel):
@@ -68,7 +64,7 @@ class UserRegisterSchema(BaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
-        if not self.password or not self.password.strip():
+        if not self.password.strip():
             object.__setattr__(self, "password", generate_password())
             object.__setattr__(self, "is_password_generated", True)
         else:
@@ -84,27 +80,29 @@ class UserPasswordUpdateSchema(BaseModel):
     @classmethod
     def validate_password(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError("Вы не ввели новый пароль")
+            raise MissingRequiredFieldException("новый пароль")
         return validate_strong_password(v)
 
     @field_validator("current_password")
     @classmethod
     def password_required(cls, v):
         if not v.strip():
-            raise ValueError("Требуется текущий пароль")
+            raise MissingRequiredFieldException("текущий пароль")
         return v
 
     @field_validator("confirm_password")
     @classmethod
     def validate_confirm_password(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError("Подтвердите новый пароль")
+            raise MissingRequiredFieldException("подтверждение пароля")
         return v
 
     @model_validator(mode="after")
     def check_passwords_match_and_not_same(self):
         if self.new_password != self.confirm_password:
-            raise ValueError("Пароли не совпадают")
+            raise InvalidInputException(
+                "подтверждение пароля", "не совпадает", "совпадение с новым паролем")
         if self.new_password == self.current_password:
-            raise ValueError("Новый пароль не должен совпадать с текущим")
+            raise InvalidInputException(
+                "новый пароль", "совпадает со старым", "отличный от текущего пароль")
         return self

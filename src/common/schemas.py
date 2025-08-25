@@ -1,5 +1,8 @@
 from pydantic import BaseModel, Field, model_validator
 
+from src.core.exception import InvalidInputException
+
+
 
 class TaskSchema(BaseModel):
     name: str | None = Field(default=None, max_length=30)
@@ -35,5 +38,5 @@ class BaseSortValidator(BaseModel):
         """
         for a, b in conflicts:
             if a in sort and b in sort:
-                raise ValueError(
-                    f"Нельзя использовать одновременно '{a}' и '{b}'")
+                raise InvalidInputException(
+                    "параметры", f"{a} и {b}", "взаимоисключающие параметры")

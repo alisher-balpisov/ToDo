@@ -1,7 +1,6 @@
 from fastapi import APIRouter
 
-from src.auth.service import CurrentUser
-from src.core.database import DbSession, PrimaryKey, UsernameStr
+from src.core.types import CurrentUser, DbSession, PrimaryKey, UsernameStr
 from src.sharing.schemas import TaskShareSchema
 
 from .service import share_task_service, unshare_task_service

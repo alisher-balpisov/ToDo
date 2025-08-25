@@ -1,10 +1,14 @@
 from fastapi import HTTPException, status
 
 from src.auth.service import get_user_by_username
-from src.common.utils import handler, is_task_owner, transactional
-from src.core.database import DbSession
-from src.exceptions import (TASK_ACCESS_FORBIDDEN, USER_NOT_FOUND,
-                            task_already_shared, task_not_shared_with_user)
+from src.common.utils import is_task_owner
+from src.core.decorators import handler, transactional
+from src.core.exception import (InsufficientPermissionsException,
+                          InvalidOperationException,
+                          ResourceAlreadyExistsException,
+                          ResourceNotFoundException)
+
+from src.core.types import DbSession
 from src.sharing.models import Share, SharedAccessEnum
 from src.sharing.service import (get_share_record, is_already_shared,
                                  is_sharing_with_self)
@@ -20,20 +24,20 @@ def share_task_service(
         permission_level: SharedAccessEnum
 ) -> None:
     if not is_task_owner(session, owner_id, task_id):
-        raise TASK_ACCESS_FORBIDDEN
+        raise InsufficientPermissionsException(
+            "доступ к задаче", "пользователь")
 
     target_user = get_user_by_username(session, target_username)
-    if not target_user:
-        raise USER_NOT_FOUND
+    if target_user is None:
+        raise ResourceNotFoundException("Пользователь", target_username)
 
     if is_sharing_with_self(owner_id, target_user.id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"msg": "Нельзя делиться задачей с самим собой"}
-        )
+        raise InvalidOperationException(
+            "расшаривание задачи", "самому себе", "Нельзя делиться задачей с самим собой")
 
     if is_already_shared(session, target_user.id, task_id):
-        raise task_already_shared(target_username)
+        raise ResourceAlreadyExistsException(
+            "Доступ к задаче", target_username)
 
     new_share = Share(
         task_id=task_id,
@@ -53,14 +57,15 @@ def unshare_task_service(
     target_username: str
 ) -> None:
     if not is_task_owner(session, owner_id, task_id):
-        raise TASK_ACCESS_FORBIDDEN
+        raise InsufficientPermissionsException(
+            "доступ к задаче", "пользователь")
 
     target_user = get_user_by_username(session, target_username)
-    if not target_user:
-        raise USER_NOT_FOUND
+    if target_user is None:
+        raise ResourceNotFoundException("Пользователь", target_username)
 
     share = get_share_record(
         session, owner_id, target_user.id, task_id)
-    if not share:
-        raise task_not_shared_with_user(target_username)
+    if share is None:
+        raise ResourceNotFoundException("Доступ к задаче", target_username)
     session.delete(share)

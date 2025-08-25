@@ -1,5 +1,4 @@
 from src.common.models import Task
-from src.core.database import DbSession
 
 from .models import Share, SharedAccessEnum
 

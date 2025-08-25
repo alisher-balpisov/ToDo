@@ -2,10 +2,11 @@ import mimetypes
 
 from fastapi import HTTPException, UploadFile, status
 
+from src.common.constants import CONTENT_TYPE_OCTET_STREAM
 from src.common.models import Task
-from src.common.utils import handler, transactional, validate_and_read_file
-from src.constants import CONTENT_TYPE_OCTET_STREAM
-from src.exceptions import FILE_EMPTY, TASK_NOT_FOUND
+from src.common.utils import validate_and_read_file
+from src.core.decorators import handler, transactional
+
 from src.sharing.models import SharedAccessEnum
 from src.sharing.service import get_permission_level, get_user_shared_task
 
@@ -19,14 +20,11 @@ async def upload_file_to_shared_task_service(
     task_id: int
 ) -> None:
     task = get_user_shared_task(session, current_user_id, task_id)
-    if not task:
-        raise TASK_NOT_FOUND
+    if task is None:
+        raise ResourceNotFoundException("Задача", task_id)
 
     if get_permission_level(session, current_user_id, task_id) is not SharedAccessEnum.edit:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={"msg": "Нет доступа для редактирования задачи"}
-        )
+        raise InsufficientPermissionsException("редактирование задачи")
 
     file_data = await validate_and_read_file(uploaded_file)
     task.file_data = file_data
@@ -40,10 +38,10 @@ def get_shared_task_file_service(
     task_id: int
 ) -> tuple[Task, str]:
     task = get_user_shared_task(session, current_user_id, task_id)
-    if not task:
-        raise TASK_NOT_FOUND
+    if task is None:
+        raise ResourceNotFoundException("Задача", task_id)
     if not task.file_data:
-        raise FILE_EMPTY
+        raise InvalidInputException("файл", "пустой файл", "непустой файл")
     mime_type, _ = mimetypes.guess_type(task.file_name or "")
 
     return task, mime_type or CONTENT_TYPE_OCTET_STREAM

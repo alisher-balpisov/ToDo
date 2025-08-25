@@ -5,10 +5,12 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from src.auth.schemas import (TokenSchema, UserPasswordUpdateSchema,
                               UserRegisterSchema)
-from src.core.database import DbSession
+from src.core.exception import InvalidCredentialsException
 
-from .service import (CurrentUser, login_service, oauth2_scheme,
-                      refresh_service, register_service)
+from src.core.types import CurrentUser, DbSession
+
+from .service import (login_service, oauth2_scheme, refresh_service,
+                      register_service)
 
 router = APIRouter()
 
@@ -21,12 +23,15 @@ def register(
     register_service(session=session,
                      username=user_in.username,
                      password=user_in.password)
-    return {
+    response = {
         "msg": "Регистрация пройдена успешно",
         "username": user_in.username,
-        "password": user_in.password,
-        "is_password_generated": user_in.is_password_generated
     }
+
+    if user_in.is_password_generated:
+        response["generated_password"] = user_in.password
+
+    return response
 
 
 @router.post("/login")
@@ -62,10 +67,7 @@ def change_password(
         password_update: UserPasswordUpdateSchema,
 ):
     if not current_user.verify_password(password_update.current_password):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"msg": "Неверный текущий пароль"},
-        )
+        raise InvalidCredentialsException("текущий пароль")
     try:
         current_user.set_password(password_update.new_password)
         session.commit()

@@ -1,5 +1,3 @@
-import pytest
-
 from src.auth.models import User
 
 
@@ -18,7 +16,6 @@ class TestAuthEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert data["username"] == "newuser"
-        assert "password" in data
         assert data["msg"] == "Регистрация пройдена успешно"
 
         # Проверяем, что пользователь создан в БД
