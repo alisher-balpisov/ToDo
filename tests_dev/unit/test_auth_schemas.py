@@ -1,5 +1,4 @@
 import pytest
-from pydantic import ValidationError
 
 from src.auth.schemas import (UserPasswordUpdateSchema, UserRegisterSchema,
                               generate_password, validate_strong_password)
@@ -23,81 +22,98 @@ class TestUserRegisterSchema:
         assert any(c.islower() for c in schema.password)
         assert sum(c.isdigit() for c in schema.password) >= 3
 
-    @pytest.mark.parametrize("kwargs, expected_exception", [
-        # Тест валидации короткого пароля.
-        ({"password": "123"},
-         InvalidInputException(
-            "пароль", "короткий пароль", f"минимум {settings.PASSWORD_MIN_LENGTH} символов")),
+    def test_password_too_short_raises_error(self):
+        """Тест валидации короткого пароля."""
+        with pytest.raises(InvalidInputException) as exc_info:
+            UserRegisterSchema(username="testuser", password="123")
 
-        # Тест валидации пароля без заглавных букв.
-        ({"password": "password123"},
-         InvalidInputException(
-            "пароль", "пароль без заглавных", "пароль с заглавными буквами")),
+        assert exc_info.value.error_code == "INVALID_INPUT"
+        assert exc_info.value.field_name == "пароль"
+        assert exc_info.value.expected_format == f"минимум {settings.PASSWORD_MIN_LENGTH} символов"
 
-        # Тест валидации пароля без строчных букв.
-        ({"password": "PASSWORD123"},
-         InvalidInputException(
-            "пароль", "пароль без строчных", "пароль со строчными буквами")),
+    def test_password_no_uppercase_raises_error(self):
+        """Тест валидации пароля без заглавных букв."""
+        with pytest.raises(InvalidInputException) as exc_info:
+            UserRegisterSchema(username="testuser", password="password123")
 
-        # Тест валидации пароля без цифр.
-        ({"password": "Password"},
-         InvalidInputException(
-            "пароль", "пароль без цифр", "пароль с цифрами")),
+        assert exc_info.value.field_name == "пароль"
+        assert "заглавными буквами" in exc_info.value.expected_format
 
-        # Тест валидации пароля с пробелами.
-        ({"password": "Password 123"},
-         InvalidInputException(
-            "пароль", "пароль с пробелами", "пароль без пробелов"))
-    ])
-    def test_password_validation(self, kwargs, expected_exception):
-        """Тест валидации пароля."""
-        with pytest.raises(Exception) as exc_info:
-            UserRegisterSchema(username="testuser", **kwargs)
+    def test_password_no_lowercase_raises_error(self):
+        """Тест валидации пароля без строчных букв."""
+        with pytest.raises(InvalidInputException) as exc_info:
+            UserRegisterSchema(username="testuser", password="PASSWORD123")
 
-        assert expected_exception == exc_info.value
+        assert exc_info.value.field_name == "пароль"
+        assert "строчными буквами" in exc_info.value.expected_format
+
+    def test_password_no_digits_raises_error(self):
+        """Тест валидации пароля без цифр."""
+        with pytest.raises(InvalidInputException) as exc_info:
+            UserRegisterSchema(username="testuser", password="Password")
+
+        assert exc_info.value.field_name == "пароль"
+        assert "цифрами" in exc_info.value.expected_format
+
+    def test_password_with_spaces_raises_error(self):
+        """Тест валидации пароля с пробелами."""
+        with pytest.raises(InvalidInputException) as exc_info:
+            UserRegisterSchema(username="testuser", password="Password 123")
+
+        assert exc_info.value.field_name == "пароль"
+        assert "без пробелов" in exc_info.value.expected_format
 
 
 class TestUserPasswordUpdateSchema:
     """Тесты схемы обновления пароля."""
 
+    def test_password_mismatch_raises_error(self):
+        """Тест несовпадающих паролей."""
+        with pytest.raises(InvalidInputException) as exc_info:
+            UserPasswordUpdateSchema(
+                current_password="OldPassword123",
+                new_password="NewPassword123",
+                confirm_password="DifferentPassword123"
+            )
 
-@pytest.mark.parametrize("kwargs, expected_exception", [
-    # Тест несовпадающих паролей
-    ({
-        "current_password": "OldPassword123",
-        "new_password": "NewPassword123",
-        "confirm_password": "DifferentPassword123",
-    }, InvalidInputException(
-        "подтверждение пароля", "не совпадает", "совпадение с новым паролем")),
+        assert exc_info.value.field_name == "подтверждение пароля"
+        assert exc_info.value.expected_format == "совпадение с новым паролем"
 
-    # Тест когда новый пароль совпадает с текущим
-    ({
-        "current_password": "Password123",
-        "new_password": "Password123",
-        "confirm_password": "Password123",
-    }, InvalidInputException(
-        "новый пароль", "совпадает со старым", "отличный от текущего пароль")),
+    def test_same_password_raises_error(self):
+        """Тест когда новый пароль совпадает с текущим."""
+        with pytest.raises(InvalidInputException) as exc_info:
+            UserPasswordUpdateSchema(
+                current_password="Password123",
+                new_password="Password123",
+                confirm_password="Password123"
+            )
 
-    # Тест пустого текущего пароля
-    ({
-        "current_password": "",
-        "new_password": "NewPassword123",
-        "confirm_password": "NewPassword123",
-    }, MissingRequiredFieldException("текущий пароль")),
+        assert exc_info.value.field_name == "новый пароль"
+        assert "отличный от текущего" in exc_info.value.expected_format
 
-    # Тест пустого нового пароля
-    ({
-        "current_password": "OldPassword123",
-        "new_password": "",
-        "confirm_password": "",
-    }, MissingRequiredFieldException("новый пароль")),
-])
-def test_password_update_validation(kwargs, expected_exception):
-    """Тесты валидации обновления пароля."""
-    with pytest.raises(Exception) as exc_info:
-        UserPasswordUpdateSchema(**kwargs)
+    def test_empty_current_password_raises_error(self):
+        """Тест пустого текущего пароля."""
+        with pytest.raises(MissingRequiredFieldException) as exc_info:
+            UserPasswordUpdateSchema(
+                current_password="",
+                new_password="NewPassword123",
+                confirm_password="NewPassword123"
+            )
 
-    assert expected_exception == exc_info.value
+        assert exc_info.value.error_code == "MISSING_REQUIRED_FIELD"
+        assert "текущий пароль" in exc_info.value.missing_fields
+
+    def test_empty_new_password_raises_error(self):
+        """Тест пустого нового пароля."""
+        with pytest.raises(MissingRequiredFieldException) as exc_info:
+            UserPasswordUpdateSchema(
+                current_password="OldPassword123",
+                new_password="",
+                confirm_password=""
+            )
+
+        assert exc_info.value.error_code == "MISSING_REQUIRED_FIELD"
+        assert "новый пароль" in exc_info.value.missing_fields
 
 
 class TestPasswordGeneration:
@@ -108,7 +124,7 @@ class TestPasswordGeneration:
         (15, 15),
         (32, 32)
     ])
-    def test_generate_password_default_length(self, length, expected):
+    def test_generate_password_length(self, length, expected):
         """Тест генерации пароля разной длины."""
         password = generate_password(length)
 
@@ -121,5 +137,4 @@ class TestPasswordGeneration:
         """Тест валидации сильного пароля."""
         password = "ValidPassword123"
         result = validate_strong_password(password)
-
         assert result == password

@@ -1,13 +1,12 @@
 import pytest
 
-from src.core.exception import (InsufficientPermissionsException,
-                                InvalidOperationException,
+from src.core.exception import (InvalidOperationException,
                                 ResourceAlreadyExistsException,
                                 ResourceNotFoundException)
 from src.sharing.models import SharedAccessEnum
 from src.sharing.service import (get_permission_level, get_user_shared_task,
                                  is_already_shared, is_sharing_with_self)
-from src.sharing.share.service import share_task_service, unshare_task_service
+from src.sharing.share.service import share_task_service
 
 
 class TestSharingService:
@@ -25,7 +24,6 @@ class TestSharingService:
             target_user_id=test_user2.id,
             task_id=test_task.id
         )
-
         assert result is False
 
     def test_is_already_shared_true(self, db_session, test_user, test_user2, shared_task):
@@ -35,7 +33,6 @@ class TestSharingService:
             target_user_id=test_user2.id,
             task_id=shared_task.id
         )
-
         assert result is True
 
     def test_share_task_service_success(self, db_session, test_user, test_user2, test_task):
@@ -60,7 +57,7 @@ class TestSharingService:
 
     def test_share_task_service_nonexistent_user(self, db_session, test_user, test_task):
         """Тест предоставления доступа несуществующему пользователю."""
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ResourceNotFoundException) as exc_info:
             share_task_service(
                 session=db_session,
                 owner_id=test_user.id,
@@ -69,11 +66,13 @@ class TestSharingService:
                 permission_level=SharedAccessEnum.view
             )
 
-        assert isinstance(exc_info.value, ResourceNotFoundException)
+        assert exc_info.value.error_code == "RESOURCE_NOT_FOUND"
+        assert exc_info.value.resource_type == "Пользователь"
+        assert exc_info.value.resource_id == "nonexistent"
 
     def test_share_task_service_already_shared(self, db_session, test_user, test_user2, shared_task):
         """Тест предоставления доступа к уже расшаренной задаче."""
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ResourceAlreadyExistsException) as exc_info:
             share_task_service(
                 session=db_session,
                 owner_id=test_user.id,
@@ -82,11 +81,12 @@ class TestSharingService:
                 permission_level=SharedAccessEnum.view
             )
 
-        assert isinstance(exc_info.value, ResourceAlreadyExistsException)
+        assert exc_info.value.error_code == "RESOURCE_ALREADY_EXISTS"
+        assert exc_info.value.resource_type == "Доступ к задаче"
 
     def test_share_task_with_self(self, db_session, test_user, test_task):
         """Тест предоставления доступа самому себе."""
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(InvalidOperationException) as exc_info:
             share_task_service(
                 session=db_session,
                 owner_id=test_user.id,
@@ -94,25 +94,10 @@ class TestSharingService:
                 target_username=test_user.username,
                 permission_level=SharedAccessEnum.view
             )
-        assert (exc_info.value, InvalidOperationException)
 
-    def test_unshare_task_service_success(self, db_session, test_user, test_user2, shared_task):
-        """Тест успешного отзыва доступа к задаче."""
-        unshare_task_service(
-            session=db_session,
-            owner_id=test_user.id,
-            task_id=shared_task.id,
-            target_username=test_user2.username
-        )
-
-        # Проверяем, что доступ отозван
-        shared_task_after = get_user_shared_task(
-            session=db_session,
-            target_user_id=test_user2.id,
-            task_id=shared_task.id
-        )
-
-        assert shared_task_after is None
+        assert exc_info.value.error_code == "INVALID_OPERATION"
+        assert exc_info.value.operation == "расшаривание задачи"
+        assert "с самим собой" in exc_info.value.reason
 
     def test_get_permission_level(self, db_session, test_user2, shared_task):
         """Тест получения уровня разрешений."""

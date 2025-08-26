@@ -31,14 +31,15 @@ class TestToDoUserModel:
         """Тест ошибки при пустом пароле."""
         user = User(username="testuser", email="test@example.com")
 
-        with pytest.raises(MissingRequiredFieldException,
-                           match="Отсутствует обязательное поле 'новый пароль'"):
+        with pytest.raises(MissingRequiredFieldException) as exc_info:
             user.set_password("")
 
+        assert exc_info.value.error_code == "MISSING_REQUIRED_FIELD"
+        assert "новый пароль" in str(exc_info.value)
+        assert exc_info.value.details["missing_fields"] == ["новый пароль"]
+
     @pytest.mark.parametrize("set_pw, verify_pw, expected_bool", [
-        # Тест успешной проверки пароля.
         ("TestPassword123", "TestPassword123", True),
-        # Тест неуспешной проверки пароля.
         ("correct_password", "wrong_password", False),
         ("password", "", False),
         ("password", None, False)

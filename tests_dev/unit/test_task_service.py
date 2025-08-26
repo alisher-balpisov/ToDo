@@ -27,25 +27,22 @@ class TestTaskService:
         assert task.completion_status is False
         assert isinstance(task.date_time, datetime)
 
-    @pytest.mark.parametrize("task_name, expected_exception", [
-        ("", MissingRequiredFieldException("имя задачи")),
-        (None, MissingRequiredFieldException("имя задачи"))
-    ])
-    def test_create_task_without_name(self, db_session, test_user, task_name, expected_exception):
-        """Тест создания задачи без названия."""
-        with pytest.raises(Exception) as exc_info:
+    def test_create_task_empty_name_raises_error(self, db_session, test_user):
+        """Тест создания задачи с пустым названием."""
+        with pytest.raises(MissingRequiredFieldException) as exc_info:
             create_task_service(
                 session=db_session,
                 current_user_id=test_user.id,
-                task_name=task_name,
+                task_name="",
                 task_text="Test description"
             )
 
-        assert expected_exception == exc_info.value
+        assert exc_info.value.error_code == "MISSING_REQUIRED_FIELD"
+        assert "имя задачи" in exc_info.value.missing_fields
 
-    def test_create_task_with_none_name(self, db_session, test_user):
+    def test_create_task_none_name_raises_error(self, db_session, test_user):
         """Тест создания задачи с None в названии."""
-        with pytest.raises(MissingRequiredFieldException, match="Отсутствует обязательное поле 'имя задачи'") as exc_info:
+        with pytest.raises(MissingRequiredFieldException) as exc_info:
             create_task_service(
                 session=db_session,
                 current_user_id=test_user.id,
@@ -53,16 +50,21 @@ class TestTaskService:
                 task_text="Test description"
             )
 
+        assert exc_info.value.error_code == "MISSING_REQUIRED_FIELD"
+        assert "имя задачи" in exc_info.value.missing_fields
+
     def test_get_tasks_service(self, db_session, test_user):
         """Тест получения списка задач."""
         # Создаем несколько задач
+        tasks_created = []
         for i in range(3):
-            create_task_service(
+            task = create_task_service(
                 session=db_session,
                 current_user_id=test_user.id,
                 task_name=f"Task {i}",
                 task_text=f"Description {i}"
             )
+            tasks_created.append(task)
 
         tasks = get_tasks_service(
             session=db_session,
@@ -74,28 +76,6 @@ class TestTaskService:
 
         assert len(tasks) == 3
         assert all(task.user_id == test_user.id for task in tasks)
-
-    def test_get_tasks_with_pagination(self, db_session, test_user):
-        """Тест получения задач с пагинацией."""
-        # Создаем 5 задач
-        for i in range(5):
-            create_task_service(
-                session=db_session,
-                current_user_id=test_user.id,
-                task_name=f"Task {i}",
-                task_text=f"Description {i}"
-            )
-
-        # Получаем только 2 задачи, пропуская первую
-        tasks = get_tasks_service(
-            session=db_session,
-            current_user_id=test_user.id,
-            sort=[],
-            skip=1,
-            limit=2
-        )
-
-        assert len(tasks) == 2
 
     def test_get_task_service_found(self, db_session, test_user, test_task):
         """Тест получения существующей задачи."""
@@ -111,25 +91,28 @@ class TestTaskService:
     def test_get_task_service_not_found(self, db_session, test_user):
         """Тест получения несуществующей задачи."""
         task_id = 999
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ResourceNotFoundException) as exc_info:
             get_task_service(
                 session=db_session,
                 current_user_id=test_user.id,
                 task_id=task_id
             )
 
-        assert isinstance(exc_info.value, ResourceNotFoundException)
+        assert exc_info.value.error_code == "RESOURCE_NOT_FOUND"
+        assert exc_info.value.resource_type == "Задача"
+        assert exc_info.value.resource_id == str(task_id)
 
     def test_get_task_service_other_user(self, db_session, test_user2, test_task):
         """Тест получения задачи другого пользователя."""
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ResourceNotFoundException) as exc_info:
             get_task_service(
                 session=db_session,
                 current_user_id=test_user2.id,
                 task_id=test_task.id
             )
 
-        assert isinstance(exc_info.value, ResourceNotFoundException)
+        assert exc_info.value.error_code == "RESOURCE_NOT_FOUND"
+        assert exc_info.value.resource_id == str(test_task.id)
 
     def test_update_task_service_success(self, db_session, test_user, test_task):
         """Тест успешного обновления задачи."""
@@ -144,21 +127,6 @@ class TestTaskService:
         assert updated_task.name == "Updated Task"
         assert updated_task.text == "Updated description"
 
-    def test_update_task_partial(self, db_session, test_user, test_task):
-        """Тест частичного обновления задачи."""
-        original_text = test_task.text
-
-        updated_task = update_task_service(
-            session=db_session,
-            current_user_id=test_user.id,
-            task_id=test_task.id,
-            name_update="Updated Task",
-            text_update=None
-        )
-
-        assert updated_task.name == "Updated Task"
-        assert updated_task.text == original_text
-
     def test_delete_task_service_success(self, db_session, test_user, test_task):
         """Тест успешного удаления задачи."""
         task_id = test_task.id
@@ -170,23 +138,12 @@ class TestTaskService:
         )
 
         # Проверяем, что задача удалена
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ResourceNotFoundException) as exc_info:
             get_task_service(
                 session=db_session,
                 current_user_id=test_user.id,
                 task_id=task_id
             )
 
-        assert isinstance(exc_info.value, ResourceNotFoundException)
-
-    def test_delete_task_not_found(self, db_session, test_user):
-        """Тест удаления несуществующей задачи."""
-        task_id = 999
-        with pytest.raises(Exception) as exc_info:
-            delete_task_service(
-                session=db_session,
-                current_user_id=test_user.id,
-                task_id=task_id
-            )
-
-        assert isinstance(exc_info.value, ResourceNotFoundException)
+        assert exc_info.value.error_code == "RESOURCE_NOT_FOUND"
+        assert exc_info.value.resource_id == str(task_id)

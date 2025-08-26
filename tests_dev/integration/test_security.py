@@ -47,11 +47,13 @@ class TestSecurity:
 
     def test_access_other_user_task(self, client, auth_headers2, test_task):
         """Тест доступа к задаче другого пользователя."""
-        with pytest.raises(Exception) as exc_info:
-            client.get(f"/tasks/{test_task.id}", headers=auth_headers2)
+        # with pytest.raises(Exception) as exc_info:
+        resp = client.get(f"/tasks/{test_task.id}", headers=auth_headers2)
+        assert resp.status_code == 404
+        assert resp.json()["detail"] == "Задача с ID '1' не найденa"
 
-        assert ResourceNotFoundException(
-            "Задача", test_task.id) == exc_info.value
+        # assert ResourceNotFoundException(
+        #     "Задача", test_task.id) == exc_info.value
 
     def test_invalid_token(self, client):
         """Тест с невалидным токеном."""

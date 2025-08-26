@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta, timezone
+
 import pytest
 from jose import jwt
 
@@ -23,7 +25,6 @@ class TestAuthService:
     def test_get_user_by_username_not_found(self, db_session):
         """Тест поиска пользователя по имени - не найден."""
         user = get_user_by_username(db_session, "nonexistent")
-
         assert user is None
 
     def test_get_user_by_id_found(self, db_session, test_user):
@@ -37,7 +38,6 @@ class TestAuthService:
     def test_get_user_by_id_not_found(self, db_session):
         """Тест поиска пользователя по ID - не найден."""
         user = get_user_by_id(db_session, 999)
-
         assert user is None
 
     def test_create_user_success(self, db_session):
@@ -47,9 +47,14 @@ class TestAuthService:
             password="Password123"
         )
         register_service(
-            session=db_session, username=user_data.username, password=user_data.password)
+            session=db_session,
+            username=user_data.username,
+            password=user_data.password
+        )
         user = get_user_by_username(
-            session=db_session, username=user_data.username)
+            session=db_session,
+            username=user_data.username
+        )
 
         assert user.username == "newuser"
         assert user.verify_password("Password123")
@@ -66,22 +71,22 @@ class TestAuthService:
 
     def test_get_current_user_invalid_token(self, db_session):
         """Тест получения текущего пользователя с невалидным токеном."""
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(InvalidCredentialsException) as exc_info:
             get_current_user(db_session, "invalid_token")
 
-        assert isinstance(exc_info.value, InvalidCredentialsException)
+        assert exc_info.value.error_code == "INVALID_CREDENTIALS"
 
     def test_get_current_user_expired_token(self, db_session, test_user):
         """Тест получения пользователя с истекшим токеном."""
         # Создаем токен с прошедшим временем
-        from datetime import datetime, timedelta, timezone
-
         past_time = datetime.now(timezone.utc) - timedelta(hours=1)
         payload = {"exp": past_time, "sub": test_user.username}
         expired_token = jwt.encode(
-            payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
+            payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM
+        )
 
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(TokenExpiredException) as exc_info:
             get_current_user(db_session, expired_token)
 
-        assert isinstance(exc_info.value, TokenExpiredException)
+        assert exc_info.value.error_code == "TOKEN_EXPIRED"
+        assert exc_info.value.token_type == "access"
