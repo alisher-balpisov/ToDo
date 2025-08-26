@@ -1,5 +1,9 @@
 import io
 
+import pytest
+
+from src.core.exception import InvalidInputException
+
 
 class TestFileEndpoints:
     """Интеграционные тесты работы с файлами."""
@@ -36,29 +40,32 @@ class TestFileEndpoints:
 
     def test_upload_file_invalid_extension(self, client, auth_headers, test_task):
         """Тест загрузки файла с недопустимым расширением."""
+        extension = ".exe"
         file_content = b"Test file content"
         files = {
-            "uploaded_file": ("test.exe", io.BytesIO(file_content), "application/x-executable")
+            "uploaded_file": (f"test{extension}", io.BytesIO(file_content), "application/x-executable")
         }
+        with pytest.raises(Exception) as exc_info:
+            client.post(
+                f"/tasks/{test_task.id}/file",
+                files=files,
+                headers=auth_headers
+            )
 
-        response = client.post(
-            f"/tasks/{test_task.id}/file",
-            files=files,
-            headers=auth_headers
-        )
-
-        assert response.status_code == 415
+        assert InvalidInputException(
+            "расширение файла", extension, "допустимое расширение") == exc_info.value
 
     def test_upload_empty_file(self, client, auth_headers, test_task):
         """Тест загрузки пустого файла."""
         files = {
             "uploaded_file": ("empty.txt", io.BytesIO(b""), "text/plain")
         }
+        with pytest.raises(Exception) as exc_info:
+            client.post(
+                f"/tasks/{test_task.id}/file",
+                files=files,
+                headers=auth_headers
+            )
 
-        response = client.post(
-            f"/tasks/{test_task.id}/file",
-            files=files,
-            headers=auth_headers
-        )
-
-        assert response.status_code == 400
+        assert InvalidInputException(
+            "файл", "пустой файл", "непустой файл") == exc_info.value

@@ -72,7 +72,7 @@ class User(Base):
 
     def set_password(self, password: str) -> None:
         """Установите новый пароль для пользователя."""
-        if not password.strip():
+        if not password or not password.strip():
             raise MissingRequiredFieldException("новый пароль")
         self.password_hash = hash_password(password)
 

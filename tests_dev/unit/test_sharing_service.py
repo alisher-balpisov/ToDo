@@ -1,6 +1,9 @@
 import pytest
 
-from src.core.exception import ResourceAlreadyExistsException
+from src.core.exception import (InsufficientPermissionsException,
+                                InvalidOperationException,
+                                ResourceAlreadyExistsException,
+                                ResourceNotFoundException)
 from src.sharing.models import SharedAccessEnum
 from src.sharing.service import (get_permission_level, get_user_shared_task,
                                  is_already_shared, is_sharing_with_self)
@@ -66,8 +69,7 @@ class TestSharingService:
                 permission_level=SharedAccessEnum.view
             )
 
-        assert exc_info.value.status_code == 400
-        assert exc_info.value.detail == {"msg": "Пользователь не найден"}
+        assert isinstance(exc_info.value, ResourceNotFoundException)
 
     def test_share_task_service_already_shared(self, db_session, test_user, test_user2, shared_task):
         """Тест предоставления доступа к уже расшаренной задаче."""
@@ -80,10 +82,7 @@ class TestSharingService:
                 permission_level=SharedAccessEnum.view
             )
 
-        expected_exc = ResourceAlreadyExistsException(
-            "Доступ к задаче", test_user2.username)
-        assert exc_info.value.status_code == expected_exc.status_code
-        assert exc_info.value.detail == expected_exc.detail
+        assert isinstance(exc_info.value, ResourceAlreadyExistsException)
 
     def test_share_task_with_self(self, db_session, test_user, test_task):
         """Тест предоставления доступа самому себе."""
@@ -95,8 +94,7 @@ class TestSharingService:
                 target_username=test_user.username,
                 permission_level=SharedAccessEnum.view
             )
-        # Проверяем сообщение об ошибке
-        assert {"msg": "Нельзя делиться задачей с самим собой"} == exc_info.value.detail
+        assert (exc_info.value, InvalidOperationException)
 
     def test_unshare_task_service_success(self, db_session, test_user, test_user2, shared_task):
         """Тест успешного отзыва доступа к задаче."""

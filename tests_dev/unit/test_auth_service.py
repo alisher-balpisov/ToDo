@@ -1,11 +1,12 @@
 import pytest
-from fastapi import HTTPException
 from jose import jwt
 
 from src.auth.schemas import UserRegisterSchema
 from src.auth.service import (get_current_user, get_user_by_id,
                               get_user_by_username, register_service)
 from src.core.config import settings
+from src.core.exception import (InvalidCredentialsException,
+                                TokenExpiredException)
 
 
 class TestAuthService:
@@ -65,8 +66,10 @@ class TestAuthService:
 
     def test_get_current_user_invalid_token(self, db_session):
         """Тест получения текущего пользователя с невалидным токеном."""
-        with pytest.raises(HTTPException):
+        with pytest.raises(Exception) as exc_info:
             get_current_user(db_session, "invalid_token")
+
+        assert isinstance(exc_info.value, InvalidCredentialsException)
 
     def test_get_current_user_expired_token(self, db_session, test_user):
         """Тест получения пользователя с истекшим токеном."""
@@ -78,5 +81,7 @@ class TestAuthService:
         expired_token = jwt.encode(
             payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
 
-        with pytest.raises(HTTPException):  # credentials_exception
+        with pytest.raises(Exception) as exc_info:
             get_current_user(db_session, expired_token)
+
+        assert isinstance(exc_info.value, TokenExpiredException)

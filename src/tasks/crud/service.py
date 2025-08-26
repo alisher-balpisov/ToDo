@@ -3,7 +3,8 @@ from datetime import datetime, timezone
 from src.common.models import Task
 from src.common.utils import get_user_task, map_sort_rules
 from src.core.decorators import handler, transactional
-from src.core.exception import MissingRequiredFieldException
+from src.core.exception import (MissingRequiredFieldException,
+                                ResourceNotFoundException)
 from src.tasks.helpers import tasks_sort_mapping
 from src.tasks.schemas import SortTasksValidator
 
@@ -16,7 +17,7 @@ def create_task_service(
         task_name: str | None,
         task_text: str | None
 ) -> Task:
-    if not task_name.strip():
+    if not task_name or not task_name.strip():
         raise MissingRequiredFieldException("имя задачи")
 
     new_task = Task(

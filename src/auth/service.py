@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -10,10 +11,10 @@ from src.common.enums import TokenType
 from src.core.config import settings
 from src.core.database import get_db
 from src.core.decorators import handler, transactional
-from src.core.exception import (AuthenticationException, InvalidCredentialsException,
-                          ResourceNotFoundException, TokenExpiredException,
-                          ValidationException)
-
+from src.core.exception import (AuthenticationException,
+                                InvalidCredentialsException,
+                                ResourceNotFoundException,
+                                TokenExpiredException, ValidationException)
 
 from .models import User
 from .utils import hash_password
@@ -146,12 +147,34 @@ def refresh_service(
     return access_token, refresh_token
 
 
+logger = logging.getLogger(__name__)
+
+
 def get_current_user(
         session: Annotated[Session, Depends(get_db)],
         token: Annotated[str, Depends(oauth2_scheme)]
 ) -> User:
+    logger.debug("get_current_user called with token=%s", token)
+
     payload = verify_token(token, TokenType.ACCESS)
+    logger.debug("verify_token result=%s", payload)
+
     username = payload.get("sub")
-    user = get_user_by_username(session, username)
-    get_user_or_raise(user)
+    logger.debug("extracted username=%s", username)
+
+    user = get_user_or_raise(session, username)
+    logger.debug("user fetched=%s", user.username if user else None)
+
     return user
+
+
+@transactional
+def change_password_service(
+        session,
+        current_user: User,
+        current_password: str,
+        new_password: str
+) -> None:
+    if not current_user.verify_password(current_password):
+        raise InvalidCredentialsException()
+    current_user.set_password(new_password)

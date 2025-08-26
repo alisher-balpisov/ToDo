@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     DATABASE_HOSTNAME: str = "localhost"
     DATABASE_PORT: int = 5432
     DATABASE_USER: str = "postgres"
-    DATABASE_PASSWORD: str
+    DATABASE_PASSWORD: str | None = None
     DATABASE_NAME: str = "base_db"
     DATABASE_ECHO: bool = False
 

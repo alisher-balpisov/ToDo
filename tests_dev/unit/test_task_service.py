@@ -2,6 +2,8 @@ from datetime import datetime
 
 import pytest
 
+from src.core.exception import (MissingRequiredFieldException,
+                                ResourceNotFoundException)
 from src.tasks.crud.service import (create_task_service, delete_task_service,
                                     get_task_service, get_tasks_service,
                                     update_task_service)
@@ -25,29 +27,31 @@ class TestTaskService:
         assert task.completion_status is False
         assert isinstance(task.date_time, datetime)
 
-    def test_create_task_without_name(self, db_session, test_user):
+    @pytest.mark.parametrize("task_name, expected_exception", [
+        ("", MissingRequiredFieldException("имя задачи")),
+        (None, MissingRequiredFieldException("имя задачи"))
+    ])
+    def test_create_task_without_name(self, db_session, test_user, task_name, expected_exception):
         """Тест создания задачи без названия."""
         with pytest.raises(Exception) as exc_info:
             create_task_service(
                 session=db_session,
                 current_user_id=test_user.id,
-                task_name="",
+                task_name=task_name,
                 task_text="Test description"
             )
 
-        assert exc_info.value == TASK_NAME_REQUIRED
+        assert expected_exception == exc_info.value
 
     def test_create_task_with_none_name(self, db_session, test_user):
         """Тест создания задачи с None в названии."""
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(MissingRequiredFieldException, match="Отсутствует обязательное поле 'имя задачи'") as exc_info:
             create_task_service(
                 session=db_session,
                 current_user_id=test_user.id,
                 task_name=None,
                 task_text="Test description"
             )
-
-        assert exc_info.value == TASK_NAME_REQUIRED
 
     def test_get_tasks_service(self, db_session, test_user):
         """Тест получения списка задач."""
@@ -106,14 +110,15 @@ class TestTaskService:
 
     def test_get_task_service_not_found(self, db_session, test_user):
         """Тест получения несуществующей задачи."""
+        task_id = 999
         with pytest.raises(Exception) as exc_info:
             get_task_service(
                 session=db_session,
                 current_user_id=test_user.id,
-                task_id=999
+                task_id=task_id
             )
 
-        assert exc_info.value == TASK_NOT_FOUND
+        assert isinstance(exc_info.value, ResourceNotFoundException)
 
     def test_get_task_service_other_user(self, db_session, test_user2, test_task):
         """Тест получения задачи другого пользователя."""
@@ -124,7 +129,7 @@ class TestTaskService:
                 task_id=test_task.id
             )
 
-        assert exc_info.value == TASK_NOT_FOUND
+        assert isinstance(exc_info.value, ResourceNotFoundException)
 
     def test_update_task_service_success(self, db_session, test_user, test_task):
         """Тест успешного обновления задачи."""
@@ -172,15 +177,16 @@ class TestTaskService:
                 task_id=task_id
             )
 
-        assert exc_info.value == TASK_NOT_FOUND
+        assert isinstance(exc_info.value, ResourceNotFoundException)
 
     def test_delete_task_not_found(self, db_session, test_user):
         """Тест удаления несуществующей задачи."""
+        task_id = 999
         with pytest.raises(Exception) as exc_info:
             delete_task_service(
                 session=db_session,
                 current_user_id=test_user.id,
-                task_id=999
+                task_id=task_id
             )
 
-        assert exc_info.value == TASK_NOT_FOUND
+        assert isinstance(exc_info.value, ResourceNotFoundException)

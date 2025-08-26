@@ -53,9 +53,19 @@ class BaseProjectException(Exception):
             return f"[{self.error_code}] {self.message}"
         return self.message
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, BaseProjectException):
+            return False
+        return (
+            self.message == other.message
+            and self.error_code == other.error_code
+            and self.details == other.details
+        )
 
 # ИСКЛЮЧЕНИЯ ВАЛИДАЦИИ
 # =============================================================================
+
+
 class ValidationException(BaseProjectException):
     """Базовый класс для всех исключений, связанных с валидацией."""
     pass
@@ -205,7 +215,7 @@ class ResourceNotFoundException(ResourceException):
         self.resource_type = resource_type
         self.resource_id = str(resource_id)
 
-        message = f"{resource_type} с ID '{resource_id}' не найден"
+        message = f"{resource_type} с ID '{resource_id}' не найденa"
         details = {
             'resource_type': resource_type,
             'resource_id': self.resource_id

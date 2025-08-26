@@ -1,16 +1,14 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 
 from src.auth.schemas import (TokenSchema, UserPasswordUpdateSchema,
                               UserRegisterSchema)
-from src.core.exception import InvalidCredentialsException
-
 from src.core.types import CurrentUser, DbSession
 
-from .service import (login_service, oauth2_scheme, refresh_service,
-                      register_service)
+from .service import (change_password_service, login_service, oauth2_scheme,
+                      refresh_service, register_service)
 
 router = APIRouter()
 
@@ -66,16 +64,8 @@ def change_password(
         current_user: CurrentUser,
         password_update: UserPasswordUpdateSchema,
 ):
-    if not current_user.verify_password(password_update.current_password):
-        raise InvalidCredentialsException("текущий пароль")
-    try:
-        current_user.set_password(password_update.new_password)
-        session.commit()
-    except ValueError as e:
-        session.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail={"msg": str(e)},
-        ) from e
-
+    change_password_service(session=session,
+                            current_user=current_user,
+                            current_password=password_update.current_password,
+                            new_password=password_update.confirm_password)
     return {"msg": "Пароль успешно изменён"}

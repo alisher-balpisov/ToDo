@@ -1,13 +1,10 @@
-from fastapi import HTTPException, status
-
 from src.auth.service import get_user_by_username
 from src.common.utils import is_task_owner
 from src.core.decorators import handler, transactional
 from src.core.exception import (InsufficientPermissionsException,
-                          InvalidOperationException,
-                          ResourceAlreadyExistsException,
-                          ResourceNotFoundException)
-
+                                InvalidOperationException,
+                                ResourceAlreadyExistsException,
+                                ResourceNotFoundException)
 from src.core.types import DbSession
 from src.sharing.models import Share, SharedAccessEnum
 from src.sharing.service import (get_share_record, is_already_shared,

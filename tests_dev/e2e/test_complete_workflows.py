@@ -1,3 +1,8 @@
+import pytest
+
+from src.core.exception import ResourceNotFoundException
+
+
 class TestCompleteWorkflows:
     """End-to-end тесты полных пользовательских сценариев."""
 
@@ -129,5 +134,7 @@ class TestCompleteWorkflows:
         assert response.status_code == 200
 
         # Коллаборатор больше не видит задачу
-        response = client.get("/sharing/shared-tasks", headers=collab_headers)
-        assert response.status_code == 404  # Или 200 с пустым списком
+        with pytest.raises(Exception) as exc_info:
+            client.get("/sharing/shared-tasks", headers=collab_headers)
+
+        assert ResourceNotFoundException("Список", "данные") == exc_info.value

@@ -1,4 +1,9 @@
+import pytest
+
 from src.auth.models import User
+from src.core.config import settings
+from src.core.exception import (InvalidCredentialsException,
+                                InvalidInputException, ValidationException)
 
 
 class TestAuthEndpoints:
@@ -30,12 +35,12 @@ class TestAuthEndpoints:
             "username": test_user.username,
             "password": "Password123"
         }
+        with pytest.raises(Exception) as exc_info:
+            client.post("/register", json=user_data)
 
-        response = client.post("/register", json=user_data)
-
-        assert response.status_code == 422
-        data = response.json()
-        assert "уже существует" in data["detail"]["msg"]
+        assert ValidationException(
+            "Пользователь с такими данными уже существует "
+            "или введенные данные некорректны") == exc_info.value
 
     def test_register_invalid_password(self, client):
         """Тест регистрации с невалидным паролем."""
@@ -43,10 +48,12 @@ class TestAuthEndpoints:
             "username": "newuser",
             "password": "123"  # Слишком короткий
         }
+        with pytest.raises(Exception) as exc_info:
+            client.post("/register", json=user_data)
 
-        response = client.post("/register", json=user_data)
-
-        assert response.status_code == 422
+        assert InvalidInputException(
+            "пароль", "короткий пароль",
+            f"минимум {settings.PASSWORD_MIN_LENGTH} символов") == exc_info.value
 
     def test_login_success(self, client, test_user):
         """Тест успешного входа в систему."""
@@ -68,12 +75,10 @@ class TestAuthEndpoints:
             "username": test_user.username,
             "password": "WrongPassword"
         }
+        with pytest.raises(Exception) as exc_info:
+            client.post("/login", data=login_data)
 
-        response = client.post("/login", data=login_data)
-
-        assert response.status_code == 401
-        data = response.json()
-        assert "Неверное имя пользователя или пароль" in data["detail"]["msg"]
+        assert InvalidCredentialsException('testuser') == exc_info.value
 
     def test_login_nonexistent_user(self, client):
         """Тест входа несуществующего пользователя."""
@@ -81,10 +86,10 @@ class TestAuthEndpoints:
             "username": "nonexistent",
             "password": "Password123"
         }
+        with pytest.raises(Exception) as exc_info:
+            client.post("/login", data=login_data)
 
-        response = client.post("/login", data=login_data)
-
-        assert response.status_code == 401
+        assert InvalidCredentialsException('nonexistent') == exc_info.value
 
     def test_change_password_success(self, client, test_user, auth_headers):
         """Тест успешной смены пароля."""
@@ -96,7 +101,6 @@ class TestAuthEndpoints:
 
         response = client.post(
             "/change-password", json=password_data, headers=auth_headers)
-        print(response.json())
         assert response.status_code == 200
         data = response.json()
         assert "успешно изменён" in data["msg"]
@@ -108,13 +112,11 @@ class TestAuthEndpoints:
             "new_password": "NewPassword123",
             "confirm_password": "NewPassword123"
         }
+        with pytest.raises(Exception) as exc_info:
+            client.post(
+                "/change-password", json=password_data, headers=auth_headers)
 
-        response = client.post(
-            "/change-password", json=password_data, headers=auth_headers)
-
-        assert response.status_code == 400
-        data = response.json()
-        assert "Неверный текущий пароль" in data["detail"]["msg"]
+        assert InvalidCredentialsException() == exc_info.value
 
     def test_unauthorized_access(self, client):
         """Тест доступа без авторизации."""

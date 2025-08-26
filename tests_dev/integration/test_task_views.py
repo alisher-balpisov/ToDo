@@ -1,3 +1,9 @@
+import pytest
+
+from src.core.exception import (MissingRequiredFieldException,
+                                ResourceNotFoundException)
+
+
 class TestTaskEndpoints:
     """Интеграционные тесты эндпоинтов задач."""
 
@@ -18,13 +24,11 @@ class TestTaskEndpoints:
 
     def test_create_task_without_name(self, client, auth_headers):
         """Тест создания задачи без названия."""
-        task_data = {
-            "text": "Task description"
-        }
+        task_data = {"text": "Task description"}
+        with pytest.raises(Exception) as exc_info:
+            client.post("/tasks/", json=task_data, headers=auth_headers)
 
-        response = client.post("/tasks/", json=task_data, headers=auth_headers)
-
-        assert response.status_code == 400
+        assert MissingRequiredFieldException("имя задачи") == exc_info.value
 
     def test_get_tasks(self, client, auth_headers, test_task):
         """Тест получения списка задач."""
@@ -67,9 +71,11 @@ class TestTaskEndpoints:
 
     def test_get_task_not_found(self, client, auth_headers):
         """Тест получения несуществующей задачи."""
-        response = client.get("/tasks/999", headers=auth_headers)
+        task_id = 999
+        with pytest.raises(Exception) as exc_info:
+            client.get(f"/tasks/{task_id}", headers=auth_headers)
 
-        assert response.status_code == 404
+        assert ResourceNotFoundException("Задача", task_id) == exc_info.value
 
     def test_update_task_success(self, client, auth_headers, test_task):
         """Тест успешного обновления задачи."""

@@ -1,12 +1,14 @@
 import mimetypes
 
-from fastapi import HTTPException, UploadFile, status
+from fastapi import UploadFile
 
 from src.common.constants import CONTENT_TYPE_OCTET_STREAM
 from src.common.models import Task
 from src.common.utils import validate_and_read_file
 from src.core.decorators import handler, transactional
-
+from src.core.exception import (InsufficientPermissionsException,
+                                InvalidInputException,
+                                ResourceNotFoundException)
 from src.sharing.models import SharedAccessEnum
 from src.sharing.service import get_permission_level, get_user_shared_task
 

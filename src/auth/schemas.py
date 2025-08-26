@@ -64,7 +64,7 @@ class UserRegisterSchema(BaseModel):
 
     def __init__(self, **data):
         super().__init__(**data)
-        if not self.password.strip():
+        if not self.password or not self.password.strip():
             object.__setattr__(self, "password", generate_password())
             object.__setattr__(self, "is_password_generated", True)
         else:

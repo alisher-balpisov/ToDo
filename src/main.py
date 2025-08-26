@@ -21,6 +21,7 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan)
 
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
@@ -28,5 +29,6 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
     allow_headers=["*"],
 )
+
 
 app.include_router(api_router)

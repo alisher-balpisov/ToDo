@@ -2,6 +2,7 @@ import bcrypt
 import pytest
 
 from src.auth.models import User, hash_password
+from src.core.exception import MissingRequiredFieldException
 
 
 class TestToDoUserModel:
@@ -30,30 +31,24 @@ class TestToDoUserModel:
         """Тест ошибки при пустом пароле."""
         user = User(username="testuser", email="test@example.com")
 
-        with pytest.raises(ValueError, match="Password cannot be empty"):
+        with pytest.raises(MissingRequiredFieldException,
+                           match="Отсутствует обязательное поле 'новый пароль'"):
             user.set_password("")
 
-    def test_verify_password_success(self):
-        """Тест успешной проверки пароля."""
+    @pytest.mark.parametrize("set_pw, verify_pw, expected_bool", [
+        # Тест успешной проверки пароля.
+        ("TestPassword123", "TestPassword123", True),
+        # Тест неуспешной проверки пароля.
+        ("correct_password", "wrong_password", False),
+        ("password", "", False),
+        ("password", None, False)
+    ])
+    def test_verify_password(self, set_pw, verify_pw, expected_bool):
+        """Тест проверки пароля."""
         user = User(username="testuser", email="test@example.com")
-        password = "TestPassword123"
-        user.set_password(password)
+        user.set_password(set_pw)
 
-        assert user.verify_password(password)
-
-    def test_verify_password_failure(self):
-        """Тест неуспешной проверки пароля."""
-        user = User(username="testuser", email="test@example.com")
-        user.set_password("correct_password")
-        assert not user.verify_password("wrong_password")
-
-    def test_verify_password_empty(self):
-        """Тест проверки пустого пароля."""
-        user = User(username="testuser", email="test@example.com")
-        user.set_password("password")
-
-        assert not user.verify_password("")
-        assert not user.verify_password(None)
+        assert user.verify_password(verify_pw) is expected_bool
 
     def test_token(self):
         """Тест генерации JWT токена."""
