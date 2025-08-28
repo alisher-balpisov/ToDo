@@ -47,13 +47,14 @@ class TestSecurity:
 
     def test_access_other_user_task(self, client, auth_headers2, test_task):
         """Тест доступа к задаче другого пользователя."""
-        # with pytest.raises(Exception) as exc_info:
-        resp = client.get(f"/tasks/{test_task.id}", headers=auth_headers2)
-        assert resp.status_code == 404
-        assert resp.json()["detail"] == "Задача с ID '1' не найденa"
+        # Используем pytest.raises для проверки выброшенного исключения
+        with pytest.raises(Exception) as exc_info:
+            client.get(f"/tasks/{test_task.id}", headers=auth_headers2)
 
-        # assert ResourceNotFoundException(
-        #     "Задача", test_task.id) == exc_info.value
+        # Проверяем, что было выброшено именно ResourceNotFoundException
+        # с правильными параметрами
+        assert ResourceNotFoundException(
+            "Задача", test_task.id) == exc_info.value
 
     def test_invalid_token(self, client):
         """Тест с невалидным токеном."""
@@ -66,6 +67,6 @@ class TestSecurity:
     def test_malformed_token(self, client):
         """Тест с неправильно сформированным токеном."""
         malformed_headers = {"Authorization": "InvalidFormat"}
-        exc_info = client.get("/tasks/", headers=malformed_headers)
+        response = client.get("/tasks/", headers=malformed_headers)
 
-        assert exc_info.status_code == 401
+        assert response.status_code == 401

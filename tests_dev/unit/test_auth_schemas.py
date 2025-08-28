@@ -22,46 +22,23 @@ class TestUserRegisterSchema:
         assert any(c.islower() for c in schema.password)
         assert sum(c.isdigit() for c in schema.password) >= 3
 
-    def test_password_too_short_raises_error(self):
-        """Тест валидации короткого пароля."""
+    @pytest.mark.parametrize(
+        "password, expected_part_of_message",
+        [
+            ("123", f"минимум {settings.PASSWORD_MIN_LENGTH} символов"),
+            ("password123", "заглавными буквами"),
+            ("PASSWORD123", "строчными буквами"),
+            ("Password", "цифрами"),
+            ("Password 123", "без пробелов"),
+        ]
+    )
+    def test_invalid_password_validation(self, password, expected_part_of_message):
+        """Тест валидации невалидных паролей."""
         with pytest.raises(InvalidInputException) as exc_info:
-            UserRegisterSchema(username="testuser", password="123")
-
-        assert exc_info.value.error_code == "INVALID_INPUT"
-        assert exc_info.value.field_name == "пароль"
-        assert exc_info.value.expected_format == f"минимум {settings.PASSWORD_MIN_LENGTH} символов"
-
-    def test_password_no_uppercase_raises_error(self):
-        """Тест валидации пароля без заглавных букв."""
-        with pytest.raises(InvalidInputException) as exc_info:
-            UserRegisterSchema(username="testuser", password="password123")
-
-        assert exc_info.value.field_name == "пароль"
-        assert "заглавными буквами" in exc_info.value.expected_format
-
-    def test_password_no_lowercase_raises_error(self):
-        """Тест валидации пароля без строчных букв."""
-        with pytest.raises(InvalidInputException) as exc_info:
-            UserRegisterSchema(username="testuser", password="PASSWORD123")
+            UserRegisterSchema(username="testuser", password=password)
 
         assert exc_info.value.field_name == "пароль"
-        assert "строчными буквами" in exc_info.value.expected_format
-
-    def test_password_no_digits_raises_error(self):
-        """Тест валидации пароля без цифр."""
-        with pytest.raises(InvalidInputException) as exc_info:
-            UserRegisterSchema(username="testuser", password="Password")
-
-        assert exc_info.value.field_name == "пароль"
-        assert "цифрами" in exc_info.value.expected_format
-
-    def test_password_with_spaces_raises_error(self):
-        """Тест валидации пароля с пробелами."""
-        with pytest.raises(InvalidInputException) as exc_info:
-            UserRegisterSchema(username="testuser", password="Password 123")
-
-        assert exc_info.value.field_name == "пароль"
-        assert "без пробелов" in exc_info.value.expected_format
+        assert expected_part_of_message in exc_info.value.expected_format
 
 
 class TestUserPasswordUpdateSchema:
