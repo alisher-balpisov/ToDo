@@ -30,17 +30,19 @@ class TestTaskEndpoints:
         assert "task_id" in data
         assert data["msg"] == "Задача добавлена"
 
-    async def test_create_task_without_name_raises_missing_field(self, client, auth_headers):
-        """Тест создания задачи без названия должен вызвать исключение."""
+    async def test_create_task_without_name_returns_400(self, client, auth_headers):
+        """Тест создания задачи без названия должен вернуть 400 Bad Request."""
         # Arrange
         task_data = {"text": "Task description"}
 
-        # Act & Assert
-        with pytest.raises(MissingRequiredFieldException) as exc_info:
-            await client.post("/tasks/", json=task_data, headers=auth_headers)
+        # Act
+        response = await client.post("/tasks/", json=task_data, headers=auth_headers)
+        data = response.json()
 
-        assert exc_info.value.error_code == "MISSING_REQUIRED_FIELD"
-        assert "имя задачи" in str(exc_info.value)
+        # Assert
+        assert response.status_code == 400
+        assert data["error_code"] == "MISSING_REQUIRED_FIELD"
+        assert "имя задачи" in data["detail"]["missing_fields"]
 
     async def test_get_tasks_without_pagination_returns_all_tasks(self, client, auth_headers, test_task):
         """Тест получения списка всех задач пользователя."""
@@ -88,18 +90,20 @@ class TestTaskEndpoints:
         assert data["id"] == task_id
         assert data["task_name"] == test_task.name
 
-    async def test_get_task_by_id_for_nonexistent_task_raises_not_found(self, client, auth_headers):
-        """Тест получения несуществующей задачи по ID должен вызвать исключение."""
+    async def test_get_task_by_id_for_nonexistent_task_returns_404(self, client, auth_headers):
+        """Тест получения несуществующей задачи по ID должен вернуть 404 Not Found."""
         # Arrange
         task_id = 9999
 
-        # Act & Assert
-        with pytest.raises(ResourceNotFoundException) as exc_info:
-            await client.get(f"/tasks/{task_id}", headers=auth_headers)
+        # Act
+        response = await client.get(f"/tasks/{task_id}", headers=auth_headers)
+        data = response.json()
 
-        assert exc_info.value.error_code == "RESOURCE_NOT_FOUND"
-        assert exc_info.value.resource_type == "Задача"
-        assert exc_info.value.resource_id == str(task_id)
+        # Assert
+        assert response.status_code == 404
+        assert data["error_code"] == "RESOURCE_NOT_FOUND"
+        assert data["detail"]["resource_type"] == "Задача"
+        assert data["detail"]["resource_id"] == str(task_id)
 
     async def test_update_task_with_valid_data_succeeds(self, client, auth_headers, test_task):
         """Тест успешного обновления данных задачи."""
@@ -159,18 +163,23 @@ class TestTaskEndpoints:
 
     async def test_get_tasks_stats_returns_correct_statistics(self, client, auth_headers, db_session, test_user):
         """Тест получения корректной статистики по задачам пользователя."""
-        # Arrange
         from src.tasks.crud.service import create_task_service
-
-        # Ensure a clean state for stats
-        await db_session.execute(delete(Task).filter(Task.user_id == test_user.id))
+        await db_session.execute(delete(Task).where(Task.user_id == test_user.id))
         await db_session.commit()
 
         task1 = await create_task_service(
-            db_session, test_user.id, "Completed Task", "")
-        await create_task_service(db_session, test_user.id, "Uncompleted Task", "")
+            session=db_session,
+            current_user_id=test_user.id,
+            task_name="Completed Task",
+            task_text=""
+        )
+        await create_task_service(
+            session=db_session,
+            current_user_id=test_user.id,
+            task_name="Uncompleted Task",
+            task_text=""
+        )
 
-        # Mark one as completed
         task1.completion_status = True
         await db_session.commit()
 

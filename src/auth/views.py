@@ -1,3 +1,4 @@
+# src/auth/views.py
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
@@ -67,5 +68,5 @@ async def change_password(
     await change_password_service(session=session,
                                   current_user=current_user,
                                   current_password=password_update.current_password,
-                                  new_password=password_update.confirm_password)
+                                  new_password=password_update.new_password)
     return {"msg": "Пароль успешно изменён"}

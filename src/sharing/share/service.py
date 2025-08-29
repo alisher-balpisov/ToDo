@@ -61,6 +61,7 @@ async def unshare_task_service(
 
     share = await get_share_record(
         session, owner_id, target_user.id, task_id)
-    if share is None:
-        raise ResourceNotFoundException("Доступ к задаче", target_username)
-    session.delete(share)
+    if not share:
+        raise ResourceNotFoundException(
+            "Доступ к задаче", f"для {target_username}")
+    await session.delete(share)

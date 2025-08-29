@@ -1,3 +1,4 @@
+# src/main.py
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -5,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from src.core.config import settings
 from src.core.database import create_tables
+from src.core.exception_handlers import register_exception_handlers
 from src.endpoints import api_router
 
 
@@ -30,5 +32,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+register_exception_handlers(app)
 
 app.include_router(api_router)

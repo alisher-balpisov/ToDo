@@ -32,7 +32,7 @@ async def create_task_service(
     return new_task
 
 
-@service_method()
+@service_method(commit=False)
 async def get_tasks_service(
         session,
         current_user_id: int,
@@ -46,13 +46,14 @@ async def get_tasks_service(
     order_by = map_sort_rules(sort, tasks_sort_mapping)
     if order_by:
         stmt = stmt.order_by(*order_by)
+    stmt = stmt.offset(skip).limit(limit)
 
     result = await session.execute(stmt)
-    tasks = result.offset(skip).limit(limit).all()
+    tasks = result.scalars().all()
     return tasks
 
 
-@service_method()
+@service_method(commit=False)
 async def get_task_service(
         session,
         current_user_id: int,
@@ -72,9 +73,7 @@ async def update_task_service(
         name_update: str | None,
         text_update: str | None
 ) -> Task:
-    task = await get_user_task(session, current_user_id, task_id)
-    if task is None:
-        raise ResourceNotFoundException("Задача", task_id)
+    task = await get_task_service(session, current_user_id, task_id)
     task.name = name_update if name_update else task.name
     task.text = text_update if text_update else task.text
     return task
@@ -86,7 +85,5 @@ async def delete_task_service(
         current_user_id: int,
         task_id: int
 ) -> None:
-    task = await get_user_task(session, current_user_id, task_id)
-    if task is None:
-        raise ResourceNotFoundException("Задача", task_id)
-    session.delete(task)
+    task = await get_task_service(session, current_user_id, task_id)
+    await session.delete(task)

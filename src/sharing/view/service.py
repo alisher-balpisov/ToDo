@@ -15,7 +15,7 @@ from src.sharing.service import (get_permission_level, get_user_shared_task,
                                  is_task_collaborator)
 
 
-@service_method()
+@service_method(commit=False)
 async def get_shared_tasks_service(
     session,
     current_user_id: int,
@@ -46,7 +46,7 @@ async def get_shared_tasks_service(
     return tasks_info or []
 
 
-@service_method()
+@service_method(commit=False)
 async def get_shared_task_service(
         session,
         current_user_id: int,
@@ -60,7 +60,7 @@ async def get_shared_task_service(
     return task, owner, permission_level
 
 
-@service_method()
+@service_method(commit=False)
 async def get_task_collaborators_service(
         session,
         current_user_id: int,
@@ -107,7 +107,7 @@ async def get_task_collaborators_service(
     return collaborators
 
 
-@service_method()
+@service_method(commit=False)
 async def get_task_permissions_service(
         session,
         current_user_id: int,

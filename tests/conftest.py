@@ -1,147 +1,138 @@
-
 import asyncio
 import os
 import tempfile
-from typing import AsyncGenerator, Generator
+from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
-from dotenv import load_dotenv
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import delete, event
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
                                     create_async_engine)
-from sqlalchemy.pool import NullPool, StaticPool
+from sqlalchemy.pool import StaticPool
 
+from src.auth.models import User
 from src.auth.schemas import UserRegisterSchema
 from src.auth.service import get_user_by_username, register_service
-from src.common.models import *  # Импортируйте ваши модели
-from src.core.database import Base, get_db  # Измените на ваши импорты
-from src.main import app  # Измените на ваш путь к FastAPI приложению
+from src.core.database import Base, get_db
+from src.main import app
 from src.sharing.share.service import share_task_service
 from src.tasks.crud.service import create_task_service
 
-# Настройка базы данных для тестов
 TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
-# Альтернативно для in-memory базы:
-# TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
+
+# -------------------------
+# Event loop
+# -------------------------
 
 
 @pytest.fixture(scope="session")
 def event_loop():
-    """Создает event loop для всей сессии тестов"""
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
+    loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
+
+# -------------------------
+# Async Engine и Session
+# -------------------------
 
 
 @pytest.fixture(scope="session")
 async def async_engine():
-    """Создает async engine для тестов"""
     engine = create_async_engine(
         TEST_DATABASE_URL,
         echo=False,
         poolclass=StaticPool,
-        connect_args={
-            "check_same_thread": False,
-        },
+        connect_args={"check_same_thread": False},
     )
-
-    # Создаем все таблицы
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
     yield engine
 
-    # Очищаем после тестов
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
 
     await engine.dispose()
 
 
+@pytest.fixture(scope="function", autouse=True)
+async def truncate_tables(async_engine):
+    async with async_engine.begin() as conn:
+        for table in reversed(Base.metadata.sorted_tables):
+            await conn.execute(table.delete())
+    yield
+
+
 @pytest.fixture
-async def async_session(async_engine):
-    """Создает async session для каждого теста"""
+async def db_session(async_engine) -> AsyncGenerator[AsyncSession, None]:
     async_session_maker = async_sessionmaker(
         bind=async_engine,
         class_=AsyncSession,
         expire_on_commit=False
     )
-
     async with async_session_maker() as session:
         yield session
-        await session.rollback()
+
+# -------------------------
+# HTTP Client
+# -------------------------
 
 
 @pytest.fixture
-async def client(async_session):
-    """Создает HTTP клиент для тестирования API"""
+async def client(async_engine):
+    async_session_maker = async_sessionmaker(
+        bind=async_engine, class_=AsyncSession, expire_on_commit=False
+    )
 
-    # Переопределяем зависимость базы данных
-    async def override_get_db():
-        yield async_session
+    async def override_get_db() -> AsyncGenerator[AsyncSession, None]:
+        async with async_session_maker() as session:
+            yield session
 
     app.dependency_overrides[get_db] = override_get_db
 
-    async with AsyncClient(app=app, base_url="http://test") as ac:
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
 
-    # Очищаем переопределения после теста
     app.dependency_overrides.clear()
 
-
-@pytest.fixture
-async def db_session(async_session):
-    """Алиас для async_session для удобства"""
-    return async_session
-
 # -------------------------
-# Фикстуры пользователей
+# Пользователи
 # -------------------------
 
 
 @pytest_asyncio.fixture
 async def test_user(db_session: AsyncSession):
+    await db_session.execute(delete(User))
+    await db_session.commit()
+
     user_data = UserRegisterSchema(username="testuser", password="Password123")
-    await register_service(
-        session=db_session,
-        username=user_data.username,
-        password=user_data.password
-    )
-    return await get_user_by_username(
-        session=db_session, username=user_data.username
-    )
+    await register_service(session=db_session, username=user_data.username, password=user_data.password)
+    return await get_user_by_username(session=db_session, username=user_data.username)
 
 
 @pytest_asyncio.fixture
-async def test_user2(db_session: AsyncSession):
+async def test_user2(db_session: AsyncSession, test_user):
     user_data = UserRegisterSchema(
         username="testuser2", password="Password123")
-    await register_service(
-        session=db_session,
-        username=user_data.username,
-        password=user_data.password
-    )
-    return await get_user_by_username(
-        session=db_session, username=user_data.username
-    )
+    await register_service(session=db_session, username=user_data.username, password=user_data.password)
+    return await get_user_by_username(session=db_session, username=user_data.username)
 
 
-@pytest.fixture
-def auth_headers(test_user):
+@pytest_asyncio.fixture
+async def auth_headers(test_user):
     token = test_user.token()
     return {"Authorization": f"Bearer {token}"}
 
 
-@pytest.fixture
-def auth_headers2(test_user2):
+@pytest_asyncio.fixture
+async def auth_headers2(test_user2):
     token = test_user2.token()
     return {"Authorization": f"Bearer {token}"}
 
 # -------------------------
-# Фикстуры задач
+# Задачи
 # -------------------------
 
 

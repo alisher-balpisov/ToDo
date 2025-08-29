@@ -1,10 +1,11 @@
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 
 from src.common.constants import MAX_SEARCH_QUERY, STATS_PERCENTAGE_PRECISION
 from src.common.models import Task
 from src.common.utils import get_user_task
 from src.core.decorators import service_method
 from src.core.exception import InvalidInputException, ResourceNotFoundException
+from src.tasks.crud.service import get_task_service
 
 
 @service_method()
@@ -38,28 +39,36 @@ async def search_tasks_service(
     return result.scalars().all()
 
 
-@service_method()
-async def get_tasks_stats_service(
-        session,
-        current_user_id: int
-) -> tuple[int, int, int, float]:
-    stmt = select(
-        func.count().label("total"),
-        func.sum(
-            func.case((Task.completion_status == True, 1), else_=0)
-        ).label("completed"),
-    ).where(Task.user_id == current_user_id)
+@service_method(commit=False)
+async def get_tasks_stats_service(session, current_user_id: int) -> tuple[int, int, int, float]:
+    """
+    Получение статистики по задачам пользователя.
+    """
+    stmt = (
+        select(
+            func.count(Task.id).label("total_tasks"),
+            func.sum(
+                case(
+                    (Task.completion_status == True, 1),
+                    else_=0
+                )
+            ).label("completed_tasks"),
+        )
+        .where(Task.user_id == current_user_id)
+    )
 
     result = await session.execute(stmt)
-    total, completed = result.one()
+    stats = result.mappings().one()
 
-    completed = completed or 0
-    uncompleted = total - completed
-    completion_percentage = round(
-        (completed / total) * 100 if total > 0 else 0,
-        STATS_PERCENTAGE_PRECISION
-    )
-    return total, completed, uncompleted, completion_percentage
+    total_tasks = stats.get("total_tasks", 0)
+    completed_tasks = stats.get("completed_tasks", 0) or 0
+    uncompleted_tasks = total_tasks - completed_tasks
+    if total_tasks > 0:
+        completion_percentage = round((completed_tasks / total_tasks) * 100, 2)
+    else:
+        completion_percentage = 0.0
+
+    return total_tasks, completed_tasks, uncompleted_tasks, completion_percentage
 
 
 @service_method()
@@ -68,9 +77,7 @@ async def toggle_task_completion_status_service(
         current_user_id: int,
         task_id: int,
 ) -> Task:
-    task = await get_user_task(session, current_user_id, task_id)
-    if task is None:
-        raise ResourceNotFoundException("Задача", task_id)
+    task = await get_task_service(session, current_user_id, task_id)
 
     task.completion_status = not task.completion_status
     return task

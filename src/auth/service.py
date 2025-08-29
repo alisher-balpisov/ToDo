@@ -6,7 +6,7 @@ from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from jose import ExpiredSignatureError, JWTError, jwt
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.common.enums import TokenType
 from src.core.config import settings
@@ -150,7 +150,7 @@ logger = logging.getLogger(__name__)
 
 
 async def get_current_user(
-        session: Annotated[Session, Depends(get_db)],
+        session: Annotated[AsyncSession, Depends(get_db)],
         token: Annotated[str, Depends(oauth2_scheme)]
 ) -> User:
     logger.debug("get_current_user called with token=%s", token)

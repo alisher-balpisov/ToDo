@@ -1,9 +1,5 @@
 import pytest
 
-from src.core.exception import ResourceNotFoundException
-
-pytestmark = pytest.mark.asyncio
-
 
 @pytest.mark.integration
 class TestCompleteWorkflows:
@@ -162,9 +158,12 @@ class TestCompleteWorkflows:
         assert unshare_response.status_code == 200
 
         # --- 8. Коллаборатор больше не может получить доступ к задаче ---
-        # Act & Assert
-        with pytest.raises(ResourceNotFoundException) as exc_info:
-            await client.get(
-                f"/sharing/shared-tasks/{task_id}", headers=collab_headers)
+        # Act
+        response = await client.get(
+            f"/sharing/shared-tasks/{task_id}", headers=collab_headers
+        )
+        data = response.json()
 
-        assert exc_info.value.error_code == "RESOURCE_NOT_FOUND"
+        # Assert
+        assert response.status_code == 404
+        assert data["error_code"] == "RESOURCE_NOT_FOUND"

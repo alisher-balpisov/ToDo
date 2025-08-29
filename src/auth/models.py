@@ -1,3 +1,4 @@
+# src/auth/models.py
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
@@ -47,7 +48,8 @@ class User(Base):
         if not password:
             return False
 
-        now = datetime.now(timezone.utc)
+        # ИСПРАВЛЕНИЕ: используем naive datetime для consistency
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         if self.is_locked:
             return False
@@ -72,7 +74,8 @@ class User(Base):
         """Проверка блокировки аккаунта."""
         if not self.locked_until:
             return False
-        return datetime.now(timezone.utc) < self.locked_until
+        # ИСПРАВЛЕНИЕ: используем naive datetime для сравнения
+        return datetime.now(timezone.utc).replace(tzinfo=None) < self.locked_until
 
     def set_password(self, password: str) -> None:
         """Установите новый пароль для пользователя."""

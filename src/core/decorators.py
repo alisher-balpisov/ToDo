@@ -1,7 +1,7 @@
 import inspect
 import logging
 from functools import wraps
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Callable
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,24 +12,26 @@ logger = logging.getLogger(__name__)
 
 
 def _get_and_validate_session(
-    func_name: str,
-    args: Tuple,
-    kwargs: Dict[str, Any],
+    func: Callable,
+    args: tuple,
+    kwargs: dict[str, Any],
     commit: bool
-) -> Optional[AsyncSession]:
+) -> AsyncSession | None:
     """Извлекает и валидирует сессию из аргументов функции."""
     if not commit:
         return None
-
-    session = kwargs.get("session")
-    if session is None and args:
-        possible_session = args[0]
-        if isinstance(possible_session, AsyncSession):
-            session = possible_session
+    session = None
+    
+    try:
+        sig = inspect.signature(func)
+        bound_args = sig.bind_partial(*args, **kwargs)
+        session = bound_args.arguments.get('session')
+    except TypeError:
+        pass
 
     if session is None:
         raise MissingRequiredFieldException(
-            f"аргумент 'session' обязателен в функции '{func_name}'"
+            f"аргумент 'session' обязателен в функции '{func.__name__}'"
         )
 
     if not isinstance(session, AsyncSession):
@@ -47,17 +49,16 @@ def _log_exception(func_name: str) -> None:
     logger.exception("[service] Ошибка в '%s'", func_name)
 
 
-async def _execute_async(func, commit, *args, **kwargs):
+async def _execute_async(func, db_session, commit, *args, **kwargs):
     """Выполняет асинхронную функцию с управлением транзакциями."""
-    session = kwargs.get("session")
     try:
         result = await func(*args, **kwargs)
-        if commit and session is not None:
-            await session.commit()
+        if commit and db_session is not None:
+            await db_session.commit()
         return result
     except Exception:
-        if session is not None:
-            await session.rollback()
+        if db_session is not None:
+            await db_session.rollback()
         _log_exception(func.__name__)
         raise
 
@@ -79,11 +80,8 @@ def service_method(commit: bool = True):
 
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            session = _get_and_validate_session(
-                func.__name__, args, kwargs, commit)
-            if 'session' not in kwargs:
-                kwargs['session'] = session
-            return await _execute_async(func, commit, *args, **kwargs)
+            session = _get_and_validate_session(func, args, kwargs, commit)
+            return await _execute_async(func, session, commit, *args, **kwargs)
 
         return wrapper
     return decorator

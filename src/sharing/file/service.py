@@ -32,7 +32,7 @@ async def upload_file_to_shared_task_service(
     task.file_name = uploaded_file.filename
 
 
-@service_method()
+@service_method(commit=False)
 async def get_shared_task_file_service(
     session,
     current_user_id: int,
