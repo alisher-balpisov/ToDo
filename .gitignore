@@ -11,5 +11,3 @@ uv.lock
 .pytest_cache
 .hypothesis/
 test.db 
-
-frontend/

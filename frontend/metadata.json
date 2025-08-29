@@ -1,0 +1,5 @@
+{
+  "name": "TodoApp",
+  "description": "A collaborative enterprise todo application. Manage your personal tasks, share them with colleagues, and track progress together with a clean, modern interface.",
+  "requestFramePermissions": []
+}

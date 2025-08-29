@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -10,6 +11,8 @@ from src.core.exception import (MissingRequiredFieldException,
 from src.tasks.helpers import tasks_sort_mapping
 from src.tasks.schemas import SortTasksValidator
 
+logger = logging.getLogger(__name__)
+
 
 @service_method()
 async def create_task_service(
@@ -18,6 +21,7 @@ async def create_task_service(
         task_name: str | None,
         task_text: str | None
 ) -> Task:
+    logger.debug("начало")
     if not task_name or not task_name.strip():
         raise MissingRequiredFieldException("имя задачи")
 
