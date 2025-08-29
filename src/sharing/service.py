@@ -1,50 +1,62 @@
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from src.common.models import Task
 
 from .models import Share, SharedAccessEnum
 
 
-def get_user_shared_task(session, target_user_id: int, task_id: int) -> Task:
-    return (session.query(Task)
-            .join(Share, Share.task_id == Task.id)
-            .filter(
-                Task.id == task_id,
-                Share.target_user_id == target_user_id)
-            .first())
+async def get_user_shared_task(session: AsyncSession, target_user_id: int, task_id: int) -> Task | None:
+    stmt = (
+        select(Task)
+        .join(Share, Share.task_id == Task.id)
+        .where(Task.id == task_id, Share.target_user_id == target_user_id)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
 
 
-def is_already_shared(session, target_user_id: int, task_id: int) -> bool:
-    return session.query(Share).filter(
+async def is_already_shared(session: AsyncSession, target_user_id: int, task_id: int) -> bool:
+    stmt = select(Share).where(
         Share.task_id == task_id,
         Share.target_user_id == target_user_id,
-    ).first() is not None
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none() is not None
 
 
-def is_sharing_with_self(owner_id: int, target_user_id: int) -> bool:
+async def is_sharing_with_self(owner_id: int, target_user_id: int) -> bool:
     return owner_id == target_user_id
 
 
-def is_task_collaborator(session, target_user_id, task_id) -> bool:
-    return session.query(Share).filter(
+async def is_task_collaborator(session: AsyncSession, target_user_id: int, task_id: int) -> bool:
+    stmt = select(Share).where(
         Share.task_id == task_id,
         Share.target_user_id == target_user_id
-    ).one_or_none() is not None
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none() is not None
 
 
-def get_share_record(
-        session,
-        owner_id: int,
-        target_user_id: int,
-        task_id: int
-) -> Share:
-    return session.query(Share).filter(
+async def get_share_record(
+    session: AsyncSession,
+    owner_id: int,
+    target_user_id: int,
+    task_id: int,
+) -> Share | None:
+    stmt = select(Share).where(
         Share.task_id == task_id,
         Share.owner_id == owner_id,
         Share.target_user_id == target_user_id,
-    ).one_or_none()
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
 
 
-def get_permission_level(session, current_user_id: int, task_id: int) -> SharedAccessEnum | None:
-    return session.query(Share.permission_level).filter(
+async def get_permission_level(session: AsyncSession, current_user_id: int, task_id: int) -> SharedAccessEnum | None:
+    stmt = select(Share.permission_level).where(
         Share.task_id == task_id,
         Share.target_user_id == current_user_id
-    ).scalar()
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()

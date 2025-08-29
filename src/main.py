@@ -10,7 +10,7 @@ from src.endpoints import api_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    create_tables()
+    await create_tables()
     yield
     print("\nПрограмма остановлена.")
     print("-" * 30 + "\n")

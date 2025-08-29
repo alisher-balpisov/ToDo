@@ -1,24 +1,34 @@
 import re
 
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, declared_attr, sessionmaker
 
 from src.core.config import settings
 
-engine = create_engine(settings.SQLALCHEMY_DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+engine = create_async_engine(
+    settings.SQLALCHEMY_DATABASE_URL,
+    echo=False,
+    future=True
+)
+
+AsyncSessionLocal = sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    autoflush=False,
+    autocommit=False,
+    expire_on_commit=False,
+)
 
 
-def get_db():
-    session = SessionLocal()
-    try:
+async def get_db():
+    async with AsyncSessionLocal() as session:
         yield session
-    finally:
-        session.close()
 
 
-def create_tables() -> None:
-    Base.metadata.create_all(bind=engine)
+# 🔹 Создание таблиц (async)
+async def create_tables() -> None:
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
 
 class Base(DeclarativeBase):

@@ -25,15 +25,15 @@ async def upload_file_to_task(
 
 
 @router.get("/{task_id}/file")
-def get_task_file(
+async def get_task_file(
         session: DbSession,
         current_user: CurrentUser,
         task_id: PrimaryKey,
 
 ) -> StreamingResponse:
-    task, mime_type = get_task_file_service(session=session,
-                                            current_user_id=current_user.id,
-                                            task_id=task_id)
+    task, mime_type = await get_task_file_service(session=session,
+                                                  current_user_id=current_user.id,
+                                                  task_id=task_id)
     return StreamingResponse(
         BytesIO(task.file_data),
         media_type=mime_type,

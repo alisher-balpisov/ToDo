@@ -13,7 +13,7 @@ router = APIRouter()
 
 
 @router.get("/shared-tasks")
-def get_shared_tasks(
+async def get_shared_tasks(
         session: DbSession,
         current_user: CurrentUser,
         sort_shared_tasks: list[SortSharedTasksRule] = Query(default=[
@@ -21,11 +21,11 @@ def get_shared_tasks(
         skip: int = Query(0, ge=0),
         limit: int = Query(100, ge=1, le=1000),
 ) -> list[dict]:
-    tasks_info = get_shared_tasks_service(session=session,
-                                          current_user_id=current_user.id,
-                                          sort=sort_shared_tasks,
-                                          skip=skip,
-                                          limit=limit)
+    tasks_info = await get_shared_tasks_service(session=session,
+                                                current_user_id=current_user.id,
+                                                sort=sort_shared_tasks,
+                                                skip=skip,
+                                                limit=limit)
     return [
         {
             "id": task.id,
@@ -40,14 +40,14 @@ def get_shared_tasks(
 
 
 @router.get("/shared-tasks/{task_id}")
-def get_shared_task(
+async def get_shared_task(
         session: DbSession,
         current_user: CurrentUser,
         task_id: PrimaryKey
 ) -> dict[str, Any]:
-    task, owner, permission_level = get_shared_task_service(session=session,
-                                                            current_user_id=current_user.id,
-                                                            task_id=task_id)
+    task, owner, permission_level = await get_shared_task_service(session=session,
+                                                                  current_user_id=current_user.id,
+                                                                  task_id=task_id)
     return {
         "id": task.id,
         "task_name": task.name,
@@ -61,14 +61,14 @@ def get_shared_task(
 
 
 @router.get("/tasks/{task_id}/collaborators")
-def get_task_collaborators(
+async def get_task_collaborators(
     session: DbSession,
     current_user: CurrentUser,
     task_id: PrimaryKey
 ) -> dict[str, Any]:
-    collaborators = get_task_collaborators_service(session=session,
-                                                   current_user_id=current_user.id,
-                                                   task_id=task_id)
+    collaborators = await get_task_collaborators_service(session=session,
+                                                         current_user_id=current_user.id,
+                                                         task_id=task_id)
     return {
         "task_id": task_id,
         "total_collaborators": len(collaborators),
@@ -77,14 +77,14 @@ def get_task_collaborators(
 
 
 @router.get("/shared-tasks/{task_id}/permissions")
-def get_task_permissions(
+async def get_task_permissions(
     session: DbSession,
     current_user: CurrentUser,
     task_id: PrimaryKey
 ) -> dict[str, Any]:
-    task, permission_level, permissions = get_task_permissions_service(session=session,
-                                                                       current_user_id=current_user.id,
-                                                                       task_id=task_id)
+    task, permission_level, permissions = await get_task_permissions_service(session=session,
+                                                                             current_user_id=current_user.id,
+                                                                             task_id=task_id)
     return {
         "task_id": task_id,
         "task_name": task.name,

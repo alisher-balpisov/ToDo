@@ -29,9 +29,13 @@ class User(Base):
     locked_until = Column(DateTime, nullable=True)
 
     last_login = Column(DateTime, nullable=True)
-    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc),
-                        onupdate=lambda: datetime.now(timezone.utc))
+
+    def utc_now_naive():
+        return datetime.now(timezone.utc).replace(tzinfo=None)
+
+    created_at = Column(DateTime, default=utc_now_naive)
+    updated_at = Column(DateTime, default=utc_now_naive,
+                        onupdate=utc_now_naive)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

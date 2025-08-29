@@ -14,7 +14,7 @@ router = APIRouter()
 
 
 @router.put("/tasks/{task_id}/shares/{target_username}")
-def update_share_permission(
+async def update_share_permission(
         session: DbSession,
         current_user: CurrentUser,
         new_permission: SharedAccessEnum,
@@ -22,25 +22,25 @@ def update_share_permission(
         target_username: UsernameStr,
 
 ) -> dict[str, str]:
-    update_share_permission_service(session=session,
-                                    owner_id=current_user.id,
-                                    new_permission=new_permission,
-                                    task_id=task_id,
-                                    target_username=target_username)
+    await update_share_permission_service(session=session,
+                                          owner_id=current_user.id,
+                                          new_permission=new_permission,
+                                          task_id=task_id,
+                                          target_username=target_username)
     return {"msg": "Уровень доступа успешно обновлен"}
 
 
 @router.put("/shared-tasks/{task_id}")
-def update_shared_task(
+async def update_shared_task(
         session: DbSession,
         current_user: CurrentUser,
         task_id: PrimaryKey,
         task_update: TaskSchema,
 ) -> dict[str, Any]:
-    task = update_shared_task_service(session=session,
-                                      current_user_id=current_user.id,
-                                      task_id=task_id,
-                                      task_update=task_update)
+    task = await update_shared_task_service(session=session,
+                                            current_user_id=current_user.id,
+                                            task_id=task_id,
+                                            task_update=task_update)
     return {
         "msg": "Расшаренная задача успешно обновлена",
         "id": task.id,
@@ -52,14 +52,14 @@ def update_shared_task(
 
 
 @router.patch("/shared-tasks/{task_id}")
-def toggle_shared_task_completion_status(
+async def toggle_shared_task_completion_status(
         session: DbSession,
         current_user: CurrentUser,
         task_id: PrimaryKey,
 ) -> dict[str, Any]:
-    task = toggle_shared_task_completion_status_service(session=session,
-                                                        current_user_id=current_user.id,
-                                                        task_id=task_id)
+    task = await toggle_shared_task_completion_status_service(session=session,
+                                                              current_user_id=current_user.id,
+                                                              task_id=task_id)
     return {
         "msg": f"Статус задачи изменен на {'выполнено' if task.completion_status else 'не выполнено'}",
         "task_id": task.id,

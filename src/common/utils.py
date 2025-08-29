@@ -1,46 +1,49 @@
 import os
 
 from fastapi import UploadFile
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.auth.models import User
 from src.common.models import Task
 from src.core.config import settings
-from src.core.exception import (InvalidInputException, MissingRequiredFieldException,
-                          ValidationException)
+from src.core.exception import (InvalidInputException,
+                                MissingRequiredFieldException,
+                                ValidationException)
 
 
-
-def get_task(session, task_id: int) -> Task:
-    return session.query(Task).filter(
-        Task.id == task_id
-    ).first()
-
-
-def get_task_user(session, task_id: int) -> User:
-    return (session.query(User)
-            .join(Task, Task.user_id == User.id)
-            .filter(Task.id == task_id)
-            .one_or_none())
+async def get_task(session: AsyncSession, task_id: int) -> Task | None:
+    result = await session.execute(
+        select(Task).where(Task.id == task_id)
+    )
+    return result.scalar_one_or_none()
 
 
-def get_user_task(session, user_id: int, task_id: int) -> Task:
-    return session.query(Task).filter(
-        Task.user_id == user_id,
-        Task.id == task_id
-    ).one_or_none()
+async def get_task_user(session: AsyncSession, task_id: int) -> User | None:
+    result = await session.execute(
+        select(User)
+        .join(Task, Task.user_id == User.id)
+        .where(Task.id == task_id)
+    )
+    return result.scalar_one_or_none()
 
 
-def is_task_owner(session, user_id: int, task_id: int) -> bool:
-    return session.query(Task).filter(
-        Task.user_id == user_id,
-        Task.id == task_id
-    ).one_or_none() is not None
+async def get_user_task(session: AsyncSession, user_id: int, task_id: int) -> Task | None:
+    result = await session.execute(
+        select(Task).where(Task.user_id == user_id, Task.id == task_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def is_task_owner(session: AsyncSession, user_id: int, task_id: int) -> bool:
+    result = await session.execute(
+        select(Task).where(Task.user_id == user_id, Task.id == task_id)
+    )
+    return result.scalar_one_or_none() is not None
 
 
 def map_sort_rules(sort: list, sort_mapping) -> list:
-    return [sort_mapping[rule]
-            for rule in sort
-            if rule in sort_mapping]
+    return [sort_mapping[rule] for rule in sort if rule in sort_mapping]
 
 
 async def validate_and_read_file(uploaded_file: UploadFile) -> bytes:

@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordRequestForm
 
 from src.auth.schemas import (TokenSchema, UserPasswordUpdateSchema,
@@ -13,14 +13,14 @@ from .service import (change_password_service, login_service, oauth2_scheme,
 router = APIRouter()
 
 
-@router.post("/register")
-def register(
+@router.post("/register", status_code=status.HTTP_200_OK)
+async def register(
         session: DbSession,
         user_in: UserRegisterSchema,
 ):
-    register_service(session=session,
-                     username=user_in.username,
-                     password=user_in.password)
+    await register_service(session=session,
+                           username=user_in.username,
+                           password=user_in.password)
     response = {
         "msg": "Регистрация пройдена успешно",
         "username": user_in.username,
@@ -37,9 +37,9 @@ async def login(
         session: DbSession,
         user_in: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> TokenSchema:
-    access_token, refresh_token = login_service(session=session,
-                                                username=user_in.username,
-                                                password=user_in.password)
+    access_token, refresh_token = await login_service(session=session,
+                                                      username=user_in.username,
+                                                      password=user_in.password)
     return TokenSchema(access_token=access_token, refresh_token=refresh_token, type="bearer")
 
 
@@ -49,8 +49,8 @@ async def refresh(
     token: Annotated[str, Depends(oauth2_scheme)]
 ):
     """Обновление access токена по refresh токену."""
-    access_token, refresh_token = refresh_service(session=session,
-                                                  token=token)
+    access_token, refresh_token = await refresh_service(session=session,
+                                                        token=token)
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
@@ -59,13 +59,13 @@ async def refresh(
 
 
 @router.post("/change-password")
-def change_password(
+async def change_password(
         session: DbSession,
         current_user: CurrentUser,
         password_update: UserPasswordUpdateSchema,
 ):
-    change_password_service(session=session,
-                            current_user=current_user,
-                            current_password=password_update.current_password,
-                            new_password=password_update.confirm_password)
+    await change_password_service(session=session,
+                                  current_user=current_user,
+                                  current_password=password_update.current_password,
+                                  new_password=password_update.confirm_password)
     return {"msg": "Пароль успешно изменён"}

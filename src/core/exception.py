@@ -17,7 +17,7 @@ class BaseProjectException(Exception):
         self,
         message: str,
         error_code: str | None = None,
-        details: dict[str, Any] | None = None,
+        detail: dict[str, Any] | None = None,
         original_exception: Exception | None = None
     ):
         """
@@ -26,13 +26,13 @@ class BaseProjectException(Exception):
         Args:
             message: Человекочитаемое описание ошибки
             error_code: Уникальный идентификатор типа ошибки
-            details: Дополнительная контекстная информация
+            detail: Дополнительная контекстная информация
             original_exception: Обернутое исключение, если применимо
         """
         super().__init__(message)
         self.message = message
         self.error_code = error_code or self.__class__.__name__
-        self.details = details or {}
+        self.detail = detail or {}
         self.original_exception = original_exception
 
         # Логируем создание исключения для отладки
@@ -44,7 +44,7 @@ class BaseProjectException(Exception):
             'error_type': self.__class__.__name__,
             'error_code': self.error_code,
             'message': self.message,
-            'details': self.details
+            'detail': self.detail
         }
 
     def __str__(self) -> str:
@@ -59,7 +59,7 @@ class BaseProjectException(Exception):
         return (
             self.message == other.message
             and self.error_code == other.error_code
-            and self.details == other.details
+            and self.detail == other.detail
         )
 
 # ИСКЛЮЧЕНИЯ ВАЛИДАЦИИ
@@ -91,13 +91,13 @@ class InvalidInputException(ValidationException):
                 f"получено '{provided_value}', ожидалось {expected_format}"
             )
 
-        details = {
+        detail = {
             'field_name': field_name,
             'provided_value': str(provided_value),
             'expected_format': expected_format
         }
 
-        super().__init__(message, 'INVALID_INPUT', details)
+        super().__init__(message, 'INVALID_INPUT', detail)
 
 
 class MissingRequiredFieldException(ValidationException):
@@ -115,8 +115,8 @@ class MissingRequiredFieldException(ValidationException):
             fields_str = "', '".join(field_names)
             message = f"Отсутствуют обязательные поля: '{fields_str}'"
 
-        details = {'missing_fields': field_names}
-        super().__init__(message, 'MISSING_REQUIRED_FIELD', details)
+        detail = {'missing_fields': field_names}
+        super().__init__(message, 'MISSING_REQUIRED_FIELD', detail)
 
 
 class DataFormatException(ValidationException):
@@ -131,13 +131,13 @@ class DataFormatException(ValidationException):
         if data_sample:
             message += f". Пример данных: {data_sample}"
 
-        details = {
+        detail = {
             'expected_format': expected_format,
             'actual_format': actual_format,
             'data_sample': data_sample
         }
 
-        super().__init__(message, 'DATA_FORMAT_ERROR', details)
+        super().__init__(message, 'DATA_FORMAT_ERROR', detail)
 
 
 # ИСКЛЮЧЕНИЯ АУТЕНТИФИКАЦИИ И АВТОРИЗАЦИИ
@@ -155,12 +155,12 @@ class InvalidCredentialsException(AuthenticationException):
 
         if username:
             message = f"Некорректные учетные данные для пользователя '{username}'"
-            details = {'username': username}
+            detail = {'username': username}
         else:
             message = "Предоставлены некорректные учетные данные"
-            details = {}
+            detail = {}
 
-        super().__init__(message, 'INVALID_CREDENTIALS', details)
+        super().__init__(message, 'INVALID_CREDENTIALS', detail)
 
 
 class TokenExpiredException(AuthenticationException):
@@ -174,12 +174,12 @@ class TokenExpiredException(AuthenticationException):
         if expired_at:
             message += f" в {expired_at}"
 
-        details = {
+        detail = {
             'token_type': token_type,
             'expired_at': expired_at
         }
 
-        super().__init__(message, 'TOKEN_EXPIRED', details)
+        super().__init__(message, 'TOKEN_EXPIRED', detail)
 
 
 class InsufficientPermissionsException(AuthenticationException):
@@ -193,12 +193,12 @@ class InsufficientPermissionsException(AuthenticationException):
         if user_role:
             message += f" (текущая роль: {user_role})"
 
-        details = {
+        detail = {
             'required_permission': required_permission,
             'user_role': user_role
         }
 
-        super().__init__(message, 'INSUFFICIENT_PERMISSIONS', details)
+        super().__init__(message, 'INSUFFICIENT_PERMISSIONS', detail)
 
 
 # ИСКЛЮЧЕНИЯ РЕСУРСОВ
@@ -216,12 +216,12 @@ class ResourceNotFoundException(ResourceException):
         self.resource_id = str(resource_id)
 
         message = f"{resource_type} с ID '{resource_id}' не найденa"
-        details = {
+        detail = {
             'resource_type': resource_type,
             'resource_id': self.resource_id
         }
 
-        super().__init__(message, 'RESOURCE_NOT_FOUND', details)
+        super().__init__(message, 'RESOURCE_NOT_FOUND', detail)
 
 
 class ResourceAlreadyExistsException(ResourceException):
@@ -232,12 +232,12 @@ class ResourceAlreadyExistsException(ResourceException):
         self.identifier = identifier
 
         message = f"{resource_type} с идентификатором '{identifier}' уже существует"
-        details = {
+        detail = {
             'resource_type': resource_type,
             'identifier': identifier
         }
 
-        super().__init__(message, 'RESOURCE_ALREADY_EXISTS', details)
+        super().__init__(message, 'RESOURCE_ALREADY_EXISTS', detail)
 
 
 class ResourceUnavailableException(ResourceException):
@@ -252,13 +252,13 @@ class ResourceUnavailableException(ResourceException):
         if reason:
             message += f": {reason}"
 
-        details = {
+        detail = {
             'resource_type': resource_type,
             'resource_id': resource_id,
             'reason': reason
         }
 
-        super().__init__(message, 'RESOURCE_UNAVAILABLE', details)
+        super().__init__(message, 'RESOURCE_UNAVAILABLE', detail)
 
 
 # ИСКЛЮЧЕНИЯ БИЗНЕС-ЛОГИКИ
@@ -280,29 +280,29 @@ class InvalidOperationException(BusinessLogicException):
         if reason:
             message += f": {reason}"
 
-        details = {
+        detail = {
             'operation': operation,
             'current_state': current_state,
             'reason': reason
         }
 
-        super().__init__(message, 'INVALID_OPERATION', details)
+        super().__init__(message, 'INVALID_OPERATION', detail)
 
 
 class BusinessRuleViolationException(BusinessLogicException):
     """Возникает при нарушении бизнес-правил."""
 
-    def __init__(self, rule_name: str, violation_details: str):
+    def __init__(self, rule_name: str, violation_detail: str):
         self.rule_name = rule_name
-        self.violation_details = violation_details
+        self.violation_detail = violation_detail
 
-        message = f"Нарушение бизнес-правила: {rule_name} - {violation_details}"
-        details = {
+        message = f"Нарушение бизнес-правила: {rule_name} - {violation_detail}"
+        detail = {
             'rule_name': rule_name,
-            'violation_details': violation_details
+            'violation_detail': violation_detail
         }
 
-        super().__init__(message, 'BUSINESS_RULE_VIOLATION', details)
+        super().__init__(message, 'BUSINESS_RULE_VIOLATION', detail)
 
 
 # ИСКЛЮЧЕНИЯ ВНЕШНИХ СЕРВИСОВ
@@ -323,12 +323,12 @@ class ServiceUnavailableException(ExternalServiceException):
         if status_code:
             message += f" (HTTP {status_code})"
 
-        details = {
+        detail = {
             'service_name': service_name,
             'status_code': status_code
         }
 
-        super().__init__(message, 'SERVICE_UNAVAILABLE', details)
+        super().__init__(message, 'SERVICE_UNAVAILABLE', detail)
 
 
 class ApiRateLimitException(ExternalServiceException):
@@ -342,12 +342,12 @@ class ApiRateLimitException(ExternalServiceException):
         if reset_time:
             message += f". Сброс лимита в: {reset_time}"
 
-        details = {
+        detail = {
             'service_name': service_name,
             'reset_time': reset_time
         }
 
-        super().__init__(message, 'API_RATE_LIMIT_EXCEEDED', details)
+        super().__init__(message, 'API_RATE_LIMIT_EXCEEDED', detail)
 
 
 # ИСКЛЮЧЕНИЯ КОНФИГУРАЦИИ
@@ -365,12 +365,12 @@ class MissingConfigurationException(ConfigurationException):
         self.config_source = config_source
 
         message = f"Отсутствует обязательная конфигурация: '{config_key}' в {config_source}"
-        details = {
+        detail = {
             'config_key': config_key,
             'config_source': config_source
         }
 
-        super().__init__(message, 'MISSING_CONFIGURATION', details)
+        super().__init__(message, 'MISSING_CONFIGURATION', detail)
 
 
 class InvalidConfigurationException(ConfigurationException):
@@ -386,13 +386,13 @@ class InvalidConfigurationException(ConfigurationException):
             f"'{config_value}' не соответствует ожидаемому формату: {expected_format}"
         )
 
-        details = {
+        detail = {
             'config_key': config_key,
             'config_value': config_value,
             'expected_format': expected_format
         }
 
-        super().__init__(message, 'INVALID_CONFIGURATION', details)
+        super().__init__(message, 'INVALID_CONFIGURATION', detail)
 
 
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
@@ -416,7 +416,7 @@ def handle_exception(exception: Exception, context: str = "") -> BaseProjectExce
         message += f" в {context}"
     message += f": {str(exception)}"
 
-    details = {
+    detail = {
         'original_exception_type': type(exception).__name__,
         'context': context
     }
@@ -424,7 +424,7 @@ def handle_exception(exception: Exception, context: str = "") -> BaseProjectExce
     return BaseProjectException(
         message=message,
         error_code='UNEXPECTED_ERROR',
-        details=details,
+        detail=detail,
         original_exception=exception
     )
 

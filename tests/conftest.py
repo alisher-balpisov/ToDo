@@ -1,352 +1,180 @@
+
+import asyncio
 import os
-import shutil
 import tempfile
-from typing import Generator
-from unittest.mock import MagicMock, Mock
+from typing import AsyncGenerator, Generator
 
 import pytest
+import pytest_asyncio
+from dotenv import load_dotenv
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import delete, event
+from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
+                                    create_async_engine)
+from sqlalchemy.pool import NullPool, StaticPool
 
+from src.auth.schemas import UserRegisterSchema
+from src.auth.service import get_user_by_username, register_service
+from src.common.models import *  # Импортируйте ваши модели
+from src.core.database import Base, get_db  # Измените на ваши импорты
+from src.main import app  # Измените на ваш путь к FastAPI приложению
+from src.sharing.share.service import share_task_service
+from src.tasks.crud.service import create_task_service
 
-@pytest.fixture
-def client():
-    """Создает мок тестового клиента для FastAPI приложения."""
-    mock_client = Mock()
-
-    # Настройка базовых методов HTTP
-    mock_client.post = Mock()
-    mock_client.get = Mock()
-    mock_client.put = Mock()
-    mock_client.patch = Mock()
-    mock_client.delete = Mock()
-
-    return mock_client
-
-
-@pytest.fixture
-def auth_headers():
-    """Возвращает заголовки авторизации для тестов."""
-    return {"Authorization": "Bearer test_access_token"}
-
-
-@pytest.fixture
-def user_data():
-    """Тестовые данные пользователя с валидным паролем."""
-    return {
-        "username": "testuser",
-        "password": "TestPassword123"  # Соответствует требованиям валидации
-    }
-
-
-@pytest.fixture
-def invalid_user_data():
-    """Данные пользователя с невалидным паролем для тестов валидации."""
-    return {
-        "username": "testuser",
-        "password": "weak"  # Не соответствует требованиям
-    }
+# Настройка базы данных для тестов
+TEST_DATABASE_URL = "sqlite+aiosqlite:///./test.db"
+# Альтернативно для in-memory базы:
+# TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
 
 @pytest.fixture(scope="session")
-def temp_dir() -> Generator[str, None, None]:
-    """Создает временную директорию для тестов."""
-    temp_path = tempfile.mkdtemp()
-    yield temp_path
-    shutil.rmtree(temp_path)
+def event_loop():
+    """Создает event loop для всей сессии тестов"""
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    yield loop
+    loop.close()
 
 
 @pytest.fixture(scope="session")
-def app_config():
-    """Конфигурация приложения для тестов."""
-    return {
-        "DATABASE_URL": "sqlite:///./test.db",
-        "JWT_SECRET": "test_secret_key_for_testing",
-        "JWT_ALGORITHM": "HS256",
-        "TODO_JWT_EXP": 30,
-        "FILE_UPLOAD_PATH": "/tmp/test_uploads"
-    }
-
-
-@pytest.fixture(scope="function")
-def mock_database():
-    """Мок базы данных для изоляции тестов."""
-    db_mock = MagicMock()
-
-    # Мокаем основные операции БД
-    db_mock.query.return_value = db_mock
-    db_mock.filter.return_value = db_mock
-    db_mock.join.return_value = db_mock
-    db_mock.first.return_value = None
-    db_mock.one_or_none.return_value = None
-    db_mock.all.return_value = []
-    db_mock.count.return_value = 0
-    db_mock.offset.return_value = db_mock
-    db_mock.limit.return_value = db_mock
-    db_mock.order_by.return_value = db_mock
-    db_mock.scalar_one_or_none.return_value = None
-
-    # Методы для изменения данных
-    db_mock.add = Mock()
-    db_mock.delete = Mock()
-    db_mock.commit = Mock()
-    db_mock.rollback = Mock()
-    db_mock.refresh = Mock()
-    db_mock.close = Mock()
-
-    return db_mock
-
-
-@pytest.fixture(scope="function")
-def authenticated_user():
-    """Фикстура аутентифицированного пользователя."""
-    return {
-        "id": 1,
-        "username": "testuser",
-        "email": "test@example.com",
-        "disabled": False,
-        "password": b"hashed_password_bytes"
-    }
-
-
-@pytest.fixture(scope="function")
-def sample_tasks():
-    """Фикстура с примерами задач для тестов."""
-    return [
-        {
-            "id": 1,
-            "name": "Task 1",
-            "text": "Description for task 1",
-            "completion_status": False,
-            "date_time": "2025-08-15T10:00:00",
-            "user_id": 1,
-            "file_data": None,
-            "file_name": None
+async def async_engine():
+    """Создает async engine для тестов"""
+    engine = create_async_engine(
+        TEST_DATABASE_URL,
+        echo=False,
+        poolclass=StaticPool,
+        connect_args={
+            "check_same_thread": False,
         },
-        {
-            "id": 2,
-            "name": "Task 2",
-            "text": "Description for task 2",
-            "completion_status": True,
-            "date_time": "2025-08-15T11:00:00",
-            "user_id": 1,
-            "file_data": b"file_content",
-            "file_name": "test.txt"
-        },
-        {
-            "id": 3,
-            "name": "Shared Task",
-            "text": "This task is shared",
-            "completion_status": False,
-            "date_time": "2025-08-15T09:00:00",
-            "user_id": 2,
-            "file_data": None,
-            "file_name": None
-        }
-    ]
+    )
 
+    # Создаем все таблицы
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
-@pytest.fixture(scope="function")
-def sample_shares():
-    """Фикстура с примерами совместного доступа."""
-    return [
-        {
-            "id": 1,
-            "task_id": 3,
-            "owner_id": 2,
-            "target_user_id": 1,
-            "permission_level": "view",
-            "date_time": "2025-08-15T09:30:00"
-        },
-        {
-            "id": 2,
-            "task_id": 1,
-            "owner_id": 1,
-            "target_user_id": 3,
-            "permission_level": "edit",
-            "date_time": "2025-08-15T10:30:00"
-        }
-    ]
+    yield engine
 
+    # Очищаем после тестов
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
 
-@pytest.fixture(scope="function")
-def mock_file_system(temp_dir):
-    """Мок файловой системы для тестов загрузки файлов."""
-    upload_dir = os.path.join(temp_dir, "uploads")
-    os.makedirs(upload_dir, exist_ok=True)
-
-    return {
-        "upload_dir": upload_dir,
-        "allowed_extensions": {".txt", ".pdf", ".doc", ".docx", ".jpg", ".png", ".jpeg"},
-        "allowed_types": {"text/plain", "application/pdf", "image/jpeg", "image/png"},
-        "max_file_size": 20 * 1024 * 1024  # 20MB
-    }
-
-
-@pytest.fixture(scope="function")
-def api_responses():
-    """Стандартные API ответы для мокирования."""
-    return {
-        "success": {"msg": "Операция выполнена успешно"},
-        "created": {"msg": "Ресурс создан успешно"},
-        "not_found": {"detail": {"msg": "Задача не найдена"}},
-        "unauthorized": {"detail": {"msg": "Не удалось подтвердить учетные данные"}},
-        "forbidden": {" ": {"msg": "Задача не найдена или не принадлежит вам"}},
-        "validation_error": {
-            "detail": [
-                {
-                    "msg": "Имя задачи не задано",
-                    "loc": ["name"],
-                    "type": "value_error",
-                }
-            ]
-        },
-        "user_not_found": {"detail": {"msg": "Пользователь не найден"}},
-        "task_already_shared": {"detail": {"msg": "Доступ к задаче уже предоставлен пользователю 'username'"}},
-        "file_empty": {"detail": {"msg": "файл пуст"}},
-        "invalid_file_extension": {"detail": {"msg": "Недопустимое расширение файла: .exe"}}
-    }
-
-
-@pytest.fixture(scope="function")
-def mock_jwt_service():
-    """Мок сервиса JWT токенов."""
-    jwt_mock = Mock()
-    jwt_mock.create_access_token.return_value = "test_access_token"
-    jwt_mock.verify_token.return_value = {"sub": "testuser", "user_id": 1}
-    jwt_mock.get_current_user.return_value = {
-        "id": 1,
-        "username": "testuser",
-        "disabled": False
-    }
-    return jwt_mock
-
-
-@pytest.fixture(scope="function")
-def mock_password_service():
-    """Мок сервиса работы с паролями."""
-    pwd_mock = Mock()
-    pwd_mock.hash_password.return_value = b"hashed_password_bytes"
-    pwd_mock.verify_password.return_value = True
-    pwd_mock.get_hash_password.return_value = b"hashed_password_bytes"
-    return pwd_mock
+    await engine.dispose()
 
 
 @pytest.fixture
-def task_owner():
-    """Фикстура владельца задачи."""
-    return {
-        "id": 1,
-        "username": "task_owner",
-        "email": "owner@example.com",
-        "disabled": False
-    }
+async def async_session(async_engine):
+    """Создает async session для каждого теста"""
+    async_session_maker = async_sessionmaker(
+        bind=async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
+
+    async with async_session_maker() as session:
+        yield session
+        await session.rollback()
 
 
 @pytest.fixture
-def collaborator_user():
-    """Фикстура пользователя-коллаборатора."""
-    return {
-        "id": 2,
-        "username": "collaborator",
-        "email": "collaborator@example.com",
-        "disabled": False
-    }
+async def client(async_session):
+    """Создает HTTP клиент для тестирования API"""
+
+    # Переопределяем зависимость базы данных
+    async def override_get_db():
+        yield async_session
+
+    app.dependency_overrides[get_db] = override_get_db
+
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac
+
+    # Очищаем переопределения после теста
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
-def valid_file_data():
-    """Фикстура с валидными данными файла."""
-    return {
-        "filename": "test_document.pdf",
-        "content": b"PDF file content here",
-        "content_type": "application/pdf",
-        "size": 1024  # 1KB
-    }
+async def db_session(async_session):
+    """Алиас для async_session для удобства"""
+    return async_session
+
+# -------------------------
+# Фикстуры пользователей
+# -------------------------
 
 
-@pytest.fixture
-def invalid_file_data():
-    """Фикстура с невалидными данными файла."""
-    return {
-        "filename": "malware.exe",
-        "content": b"Executable content",
-        "content_type": "application/octet-stream",
-        "size": 25 * 1024 * 1024  # 25MB - превышает лимит
-    }
-
-
-# Хуки pytest для дополнительной конфигурации
-def pytest_configure(config):
-    """Конфигурация pytest при запуске."""
-    config.addinivalue_line(
-        "markers", "auth: mark test as authentication related"
+@pytest_asyncio.fixture
+async def test_user(db_session: AsyncSession):
+    user_data = UserRegisterSchema(username="testuser", password="Password123")
+    await register_service(
+        session=db_session,
+        username=user_data.username,
+        password=user_data.password
     )
-    config.addinivalue_line(
-        "markers", "tasks: mark test as tasks related"
-    )
-    config.addinivalue_line(
-        "markers", "sharing: mark test as sharing related"
-    )
-    config.addinivalue_line(
-        "markers", "files: mark test as file operations related"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as integration test"
-    )
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow running"
+    return await get_user_by_username(
+        session=db_session, username=user_data.username
     )
 
 
-def pytest_collection_modifyitems(config, items):
-    """Модификация собранных тестов."""
-    for item in items:
-        # Автоматическая пометка тестов маркерами на основе имени
-        if "auth" in item.name.lower():
-            item.add_marker(pytest.mark.auth)
-        elif "task" in item.name.lower():
-            item.add_marker(pytest.mark.tasks)
-        elif "shar" in item.name.lower():
-            item.add_marker(pytest.mark.sharing)
-        elif "file" in item.name.lower():
-            item.add_marker(pytest.mark.files)
-        elif "integration" in item.name.lower() or "workflow" in item.name.lower():
-            item.add_marker(pytest.mark.integration)
-
-
-@pytest.fixture(autouse=True)
-def reset_mocks():
-    """Автоматический сброс моков после каждого теста."""
-    yield
-    # Здесь можно добавить логику очистки моков если потребуется
-
-
-# Фикстуры для специфичных сценариев тестирования
-@pytest.fixture
-def empty_task_list_response():
-    """Ответ для пустого списка задач."""
-    return {"tasks": [], "skip": 0, "limit": 100}
+@pytest_asyncio.fixture
+async def test_user2(db_session: AsyncSession):
+    user_data = UserRegisterSchema(
+        username="testuser2", password="Password123")
+    await register_service(
+        session=db_session,
+        username=user_data.username,
+        password=user_data.password
+    )
+    return await get_user_by_username(
+        session=db_session, username=user_data.username
+    )
 
 
 @pytest.fixture
-def task_stats_response():
-    """Ответ со статистикой задач."""
-    return {
-        "total_tasks": 10,
-        "completed_tasks": 6,
-        "uncompleted_tasks": 4,
-        "completion_percentage": 60.0
-    }
+def auth_headers(test_user):
+    token = test_user.token()
+    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
-def sharing_permissions_response():
-    """Ответ с разрешениями для совместного доступа."""
-    return {
-        "can_view": True,
-        "can_edit": True,
-        "can_delete": False,
-        "can_share": False,
-        "can_upload_files": True,
-        "can_change_status": True,
-        "is_owner": False
-    }
+def auth_headers2(test_user2):
+    token = test_user2.token()
+    return {"Authorization": f"Bearer {token}"}
+
+# -------------------------
+# Фикстуры задач
+# -------------------------
+
+
+@pytest_asyncio.fixture
+async def test_task(db_session: AsyncSession, test_user):
+    return await create_task_service(
+        session=db_session,
+        current_user_id=test_user.id,
+        task_name="Test Task",
+        task_text="Test description"
+    )
+
+
+@pytest_asyncio.fixture
+async def shared_task(db_session: AsyncSession, test_user, test_user2, test_task):
+    await share_task_service(
+        session=db_session,
+        owner_id=test_user.id,
+        task_id=test_task.id,
+        target_username=test_user2.username,
+        permission_level="edit"
+    )
+    return test_task
+
+# -------------------------
+# Временные файлы
+# -------------------------
+
+
+@pytest.fixture
+def temp_file():
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".txt") as tmp:
+        tmp.write(b"Test file content")
+        tmp.flush()
+        yield tmp.name
+    os.unlink(tmp.name)

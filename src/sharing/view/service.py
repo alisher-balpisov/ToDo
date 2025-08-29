@@ -1,9 +1,11 @@
+from sqlalchemy import select
+
 from src.auth.models import User
 from src.auth.service import get_user_by_id
 from src.common.models import Task
 from src.common.utils import (get_task, get_task_user, is_task_owner,
                               map_sort_rules)
-from src.core.decorators import handler
+from src.core.decorators import service_method
 from src.core.exception import (InsufficientPermissionsException,
                                 ResourceNotFoundException)
 from src.sharing.helpers import SortSharedTasksRule, shared_tasks_sort_mapping
@@ -13,8 +15,8 @@ from src.sharing.service import (get_permission_level, get_user_shared_task,
                                  is_task_collaborator)
 
 
-@handler
-def get_shared_tasks_service(
+@service_method()
+async def get_shared_tasks_service(
     session,
     current_user_id: int,
     sort: list[SortSharedTasksRule],
@@ -23,59 +25,59 @@ def get_shared_tasks_service(
 ) -> list[tuple]:
     SortSharedTasksValidator(sort=sort)
 
-    tasks_info = (
-        session.query(
+    stmt = (
+        select(
             Task,
             User.username.label("owner_username"),
             Share.permission_level
         )
         .join(Share, Share.task_id == Task.id)
         .join(User, User.id == Task.user_id)
-        .filter(Share.target_user_id == current_user_id)
+        .where(Share.target_user_id == current_user_id)
     )
     order_by = map_sort_rules(sort, shared_tasks_sort_mapping)
     if order_by:
-        tasks_info = tasks_info.order_by(*order_by)
+        stmt = stmt.order_by(*order_by)
+    stmt = stmt.offset(skip).limit(limit)
 
-    tasks_info = tasks_info.offset(skip).limit(limit).all()
-    if not tasks_info:
-        raise ResourceNotFoundException("Список", "данные")
+    result = await session.execute(stmt)
+    tasks_info = result.all()
 
-    return tasks_info
+    return tasks_info or []
 
 
-@handler
-def get_shared_task_service(
+@service_method()
+async def get_shared_task_service(
         session,
         current_user_id: int,
         task_id: int
 ) -> tuple:
-    task = get_user_shared_task(session, current_user_id, task_id)
+    task = await get_user_shared_task(session, current_user_id, task_id)
     if task is None:
         raise ResourceNotFoundException("Задача", task_id)
-    owner = get_task_user(session, task_id)
-    permission_level = get_permission_level(session, current_user_id, task_id)
+    owner = await get_task_user(session, task_id)
+    permission_level = await get_permission_level(session, current_user_id, task_id)
     return task, owner, permission_level
 
 
-@handler
-def get_task_collaborators_service(
+@service_method()
+async def get_task_collaborators_service(
         session,
         current_user_id: int,
         task_id: int,
 ) -> list[dict]:
-    task = get_task(session, task_id)
+    task = await get_task(session, task_id)
     if task is None:
         raise ResourceNotFoundException("Задача", task_id)
 
-    is_owner = is_task_owner(session, current_user_id, task_id)
-    is_collaborator = is_task_collaborator(session, current_user_id, task_id)
+    is_owner = await is_task_owner(session, current_user_id, task_id)
+    is_collaborator = await is_task_collaborator(session, current_user_id, task_id)
     if not is_owner and not is_collaborator:
         raise InsufficientPermissionsException(
             "доступ к задаче", "пользователь")
 
     collaborators = []
-    owner = get_user_by_id(session, task.user_id)
+    owner = await get_user_by_id(session, task.user_id)
     if owner:
         collaborators.append({
             "user_id": owner.id,
@@ -85,14 +87,14 @@ def get_task_collaborators_service(
             "can_revoke": False,
         })
 
-    shared_users_query = (
-        session.query(Share, User)
+    stmt = (
+        select(Share, User)
         .join(User, Share.target_user_id == User.id)
-        .filter(Share.task_id == task_id)
-        .all()
+        .where(Share.task_id == task_id)
     )
+    result = await session.execute(stmt)
 
-    for share, user in shared_users_query:
+    for share, user in result.all():
         collaborators.append({
             "user_id": user.id,
             "username": user.username,
@@ -105,17 +107,17 @@ def get_task_collaborators_service(
     return collaborators
 
 
-@handler
-def get_task_permissions_service(
+@service_method()
+async def get_task_permissions_service(
         session,
         current_user_id: int,
         task_id: int
 ) -> tuple[Task, SharedAccessEnum, dict]:
-    task = get_task(session, task_id)
+    task = await get_task(session, task_id)
     if task is None:
         raise ResourceNotFoundException("Задача", task_id)
-    is_owner = is_task_owner(session, current_user_id, task_id)
-    permission_level = get_permission_level(session, current_user_id, task_id)
+    is_owner = await is_task_owner(session, current_user_id, task_id)
+    permission_level = await get_permission_level(session, current_user_id, task_id)
     can_edit_level = is_owner or permission_level == SharedAccessEnum.edit
 
     permissions = {

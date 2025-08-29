@@ -5,12 +5,13 @@ from typing import Annotated
 from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from jose import ExpiredSignatureError, JWTError, jwt
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from src.common.enums import TokenType
 from src.core.config import settings
 from src.core.database import get_db
-from src.core.decorators import handler, transactional
+from src.core.decorators import service_method
 from src.core.exception import (AuthenticationException,
                                 InvalidCredentialsException,
                                 ResourceNotFoundException,
@@ -22,19 +23,19 @@ from .utils import hash_password
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
 
-def get_user_by_id(session, user_id: int) -> User | None:
+async def get_user_by_id(session, user_id: int) -> User | None:
     """Возвращает имя пользователя на основе заданного id."""
-    return session.query(User).filter(User.id == user_id).one_or_none()
+    return (await session.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
 
 
-def get_user_by_username(session, username: str) -> User | None:
+async def get_user_by_username(session, username: str) -> User | None:
     """Возвращает объект User, основанный на username пользователя."""
-    return session.query(User).filter(User.username == username).one_or_none()
+    return (await session.execute(select(User).where(User.username == username))).scalar_one_or_none()
 
 
-def get_user_by_email(session, email: str) -> User | None:
+async def get_user_by_email(session, email: str) -> User | None:
     """Возвращает объект User, основанный на email пользователя."""
-    return session.query(User).filter(User.email == email).one_or_none()
+    return (await session.execute(select(User).where(User.email == email))).scalar_one_or_none()
 
 
 def verify_token(token: str, expected_type: TokenType | None = None) -> dict:
@@ -68,9 +69,8 @@ def verify_token(token: str, expected_type: TokenType | None = None) -> dict:
         raise InvalidCredentialsException()
 
 
-@handler
-@transactional
-def register_service(
+@service_method()
+async def register_service(
         session,
         username: str,
         password: str,
@@ -78,9 +78,9 @@ def register_service(
 ) -> None:
     USER_DATA_ERROR = ValidationException(
         "Пользователь с такими данными уже существует или введенные данные некорректны")
-    if get_user_by_username(session=session, username=username):
+    if await get_user_by_username(session=session, username=username):
         raise USER_DATA_ERROR
-    if email is not None and get_user_by_email(session=session, email=email):
+    if email is not None and await get_user_by_email(session=session, email=email):
         raise USER_DATA_ERROR
 
     password_hash = hash_password(password)
@@ -92,14 +92,13 @@ def register_service(
     session.add(new_user)
 
 
-@handler
-@transactional
-def login_service(
+@service_method()
+async def login_service(
         session,
         username: str,
         password: str
 ) -> tuple[str, str]:
-    user = get_user_by_username(session=session, username=username)
+    user = await get_user_by_username(session=session, username=username)
     if user is None:
         raise InvalidCredentialsException(username)
 
@@ -107,7 +106,7 @@ def login_service(
         raise AuthenticationException(
             f"Учётная запись временно заблокирована до {user.locked_until.isoformat()}")
     if not user.verify_password(password):
-        session.commit()
+        await session.commit()
         raise InvalidCredentialsException(username)
 
     access_token = user.token(
@@ -117,9 +116,9 @@ def login_service(
     return access_token, refresh_token
 
 
-def get_user_or_raise(session, username: str):
+async def get_user_or_raise(session, username: str):
     """Проверяет состояние пользователя и выбрасывает исключения при проблемах."""
-    user = get_user_by_username(session, username)
+    user = await get_user_by_username(session, username)
     if user is None:
         raise ResourceNotFoundException("Пользователь", username)
 
@@ -132,13 +131,13 @@ def get_user_or_raise(session, username: str):
     return user
 
 
-def refresh_service(
+async def refresh_service(
         session,
         token: str
 ):
     payload = verify_token(token, TokenType.REFRESH)
     username = payload.get("sub")
-    user = get_user_or_raise(session, username)
+    user = await get_user_or_raise(session, username)
 
     access_token = user.token(
         settings.JWT_EXPIRATION_MINUTES, TokenType.ACCESS)
@@ -150,7 +149,7 @@ def refresh_service(
 logger = logging.getLogger(__name__)
 
 
-def get_current_user(
+async def get_current_user(
         session: Annotated[Session, Depends(get_db)],
         token: Annotated[str, Depends(oauth2_scheme)]
 ) -> User:
@@ -162,14 +161,14 @@ def get_current_user(
     username = payload.get("sub")
     logger.debug("extracted username=%s", username)
 
-    user = get_user_or_raise(session, username)
+    user = await get_user_or_raise(session, username)
     logger.debug("user fetched=%s", user.username if user else None)
 
     return user
 
 
-@transactional
-def change_password_service(
+@service_method()
+async def change_password_service(
         session,
         current_user: User,
         current_password: str,

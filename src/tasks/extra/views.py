@@ -9,14 +9,14 @@ router = APIRouter()
 
 
 @router.get("/search")
-def search_tasks(
+async def search_tasks(
         session: DbSession,
         current_user: CurrentUser,
         search_query: str
 ) -> list[dict]:
-    tasks = search_tasks_service(session=session,
-                                 current_user_id=current_user.id,
-                                 search_query=search_query)
+    tasks = await search_tasks_service(session=session,
+                                       current_user_id=current_user.id,
+                                       search_query=search_query)
     return [
         {
             "id": task.id,
@@ -30,12 +30,12 @@ def search_tasks(
 
 
 @router.get("/stats")
-def get_tasks_stats(
+async def get_tasks_stats(
         session: DbSession,
         current_user: CurrentUser
 ) -> dict:
-    result = get_tasks_stats_service(session=session,
-                                     current_user_id=current_user.id)
+    result = await get_tasks_stats_service(session=session,
+                                           current_user_id=current_user.id)
     total, completed, uncompleted, completion_percentage = result
     return {
         "total_tasks": total,
@@ -46,14 +46,14 @@ def get_tasks_stats(
 
 
 @router.patch("/tasks/{task_id}")
-def toggle_task_completion_status(
+async def toggle_task_completion_status(
         session: DbSession,
         current_user: CurrentUser,
         task_id: PrimaryKey,
 ) -> dict:
-    task = toggle_task_completion_status_service(session=session,
-                                                 current_user_id=current_user.id,
-                                                 task_id=task_id)
+    task = await toggle_task_completion_status_service(session=session,
+                                                       current_user_id=current_user.id,
+                                                       task_id=task_id)
     return {
         "msg": "Статус задачи успешно изменён",
         "task_id": task.id,

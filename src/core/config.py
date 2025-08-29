@@ -19,13 +19,13 @@ class Settings(BaseSettings):
     )
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 60
-    JWT_REFRESH_EXPIRATION_MINUTES: int = 10080   # 7 дней
+    JWT_REFRESH_EXPIRATION_MINUTES: int = 10080   # default: 7 дней
     DEFAULT_ENCODING: str = "utf-8"
     MIN_LEN_JWT_SECRET: ClassVar[int] = 32
     # Database
     DATABASE_URL: str | None = None
 
-    DATABASE_DRIVER: str = "postgresql+psycopg2"
+    DATABASE_DRIVER: str = "postgresql+asyncpg"
     DATABASE_HOSTNAME: str = "localhost"
     DATABASE_PORT: int = 5432
     DATABASE_USER: str = "postgres"
